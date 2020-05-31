@@ -16,11 +16,15 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    cipherobjectmenu.cpp \
+    ciphertextedit.cpp \
     main.cpp \
     cipher.cpp
 
 HEADERS += \
-    cipher.h
+    cipher.h \
+    cipherobjectmenu.h \
+    ciphertextedit.h
 
 FORMS += \
     cipher.ui
