@@ -3,6 +3,13 @@ QT       += core gui
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++11
+CONFIG += file_copies
+
+CONFIG(debug, debug|release) {
+    DESTDIR = debug
+} else {
+    DESTDIR = release
+}
 
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings
@@ -18,13 +25,15 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
     cipherobjectmenu.cpp \
     ciphertextedit.cpp \
+    cipherwordlineedit.cpp \
     main.cpp \
     cipher.cpp
 
 HEADERS += \
     cipher.h \
     cipherobjectmenu.h \
-    ciphertextedit.h
+    ciphertextedit.h \
+    cipherwordlineedit.h
 
 FORMS += \
     cipher.ui
@@ -33,7 +42,12 @@ OTHER_FILES += \
     database/wordlist.txt
     database/Given-Names.txt
 
+COPIES += database
+
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
+
+database.files = $$files(database/*.txt)
+database.path = $$OUT_PWD/$$DESTDIR/database
