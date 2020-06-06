@@ -134,7 +134,6 @@ void cipher::on_cipherwordlineedit_customContextMenuRequested(QPoint pos)
     QString rePattern=text.replace("-",".").prepend("^").append("$");
     QRegExp searchFilter(rePattern, Qt::CaseInsensitive);
     QStringList filteredDatabaseList(Dictionary.filter(searchFilter));
-    qDebug() << "wordFilter=" << rePattern << ".  FilteredDatabase resulted in " << filteredDatabaseList.size() << " items.";
 
     QPoint globalPos = lineEdit->mapToGlobal(pos);
     cipherobjectmenu solutionMenu;
@@ -148,7 +147,6 @@ void cipher::on_cipherwordlineedit_customContextMenuRequested(QPoint pos)
     QAction* selectedItem = solutionMenu.exec(globalPos);
     if(nullptr not_eq selectedItem)
     {
-        qDebug() << "Setting " << lineEdit->objectName() << " existing text " << lineEdit->text() << "=" << selectedItem->text();
         lineEdit->setText(selectedItem->text());
     }
 }
@@ -161,6 +159,7 @@ void cipher::build_interactive_solver()
         QList<QWidget*> solverWidgets(solver->findChildren<QWidget*>(".+"));
         for(auto widget : solverWidgets)
         {
+            qDebug() << "removing widget " << widget->objectName();
             ui->SolverVerticalLayout->removeWidget(widget);
             delete widget;
         }
@@ -173,20 +172,19 @@ void cipher::build_interactive_solver()
     int lineCount = 0;
     for(const auto& line : TheCipher)
     {
-        QWidget *wordsGroupBox = new QWidget(solver);
-        wordsGroupBox->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
-        QHBoxLayout *wordsLayout = new QHBoxLayout;
-        wordsLayout->addStretch(1);
+        QWidget *lineGroupBox = new QWidget(solver);
+        QHBoxLayout *linesLayout = new QHBoxLayout;
+        lineGroupBox->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
+        linesLayout->setSpacing(1);
 
         int wordCount = 0;
-        QWidget *untranslatedWordsGroupBox = new QWidget(solver);
-        untranslatedWordsGroupBox->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
-        QHBoxLayout *untranslatedWordsLayout = new QHBoxLayout;
-        untranslatedWordsLayout->addStretch(1);
-        untranslatedWordsLayout->setSpacing(1);
-
         for(const auto& word: line)
         {
+            QWidget *wordGroupBox = new QWidget(solver);
+            wordGroupBox->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
+            QVBoxLayout *wordsLayout = new QVBoxLayout;
+            wordsLayout->setSpacing(1);
+
             QMap<int, cipherobj*> wordTranslation;
             int symbolCount=0;
             for(const auto& symbol: word)
@@ -194,44 +192,38 @@ void cipher::build_interactive_solver()
                 wordTranslation.insert(symbolCount, find_cipher_by_untranslated_symbol(symbol));
                 ++symbolCount;
             }
-            QString lineEditTranslation;
-            for(const auto cobj: wordTranslation)
-            {
-                lineEditTranslation.append(cobj->get_untranslated_symbol());
-            }
-            qDebug() << __PRETTY_FUNCTION__ << ":" << lineEditTranslation;
-            CipherWordLineEdit *wordEditor = new CipherWordLineEdit(wordTranslation, lineCount, wordCount, wordsGroupBox);
 
-            QLineEdit* untranslatedWordText = new QLineEdit(untranslatedWordsGroupBox);
-            untranslatedWordText->setReadOnly(true);
-
-            QString translation;
-            QString untranslated;
-            for(const auto& symbol: word)
-            {
-                translation.append(find_cipher_by_untranslated_symbol(symbol)->get_translated_symbol());
-                untranslated.append(symbol);
-            }
+            CipherWordLineEdit *wordEditor = new CipherWordLineEdit(wordTranslation, lineCount, wordCount, wordGroupBox);
             wordEditor->setTextMargins(2,2,2,2);
             wordEditor->setContextMenuPolicy(Qt::CustomContextMenu);
             connect(wordEditor, &QLineEdit::textChanged, this, &cipher::solver_textChanged, Qt::UniqueConnection);
             connect(wordEditor, &QLineEdit::customContextMenuRequested, this, &cipher::on_cipherwordlineedit_customContextMenuRequested);
+
+            QLineEdit* untranslatedWordText = new QLineEdit(wordGroupBox);
+            untranslatedWordText->setReadOnly(true);
+
+            QString untranslated;
+            for(const auto& symbol: word)
+            {
+                untranslated.append(symbol);
+            }
             untranslatedWordText->setText(QString(untranslated));
             untranslatedWordText->setStyleSheet("* { background-color: rgba(0, 0, 0, 0); }");
             untranslatedWordText->setFrame(false);
 
             wordsLayout->addWidget(wordEditor);
-            untranslatedWordsLayout->addWidget(untranslatedWordText);
+            wordGroupBox->setLayout(wordsLayout);
+            wordGroupBox->show();
+
+            wordsLayout->addWidget(untranslatedWordText);
+            linesLayout->addWidget(wordGroupBox);
             ++wordCount;
-            wordsGroupBox->setLayout(wordsLayout);
-            untranslatedWordsGroupBox->setLayout(untranslatedWordsLayout);
         }
-        wordsGroupBox->show();
-        untranslatedWordsGroupBox->show();
+        lineGroupBox->setLayout(linesLayout);
+        lineGroupBox->show();
         ++lineCount;
 
-        ui->SolverVerticalLayout->addWidget(wordsGroupBox);
-        ui->SolverVerticalLayout->addWidget(untranslatedWordsGroupBox);
+        ui->SolverVerticalLayout->addWidget(lineGroupBox);
     }
     solver->show();
 }

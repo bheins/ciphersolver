@@ -55,6 +55,7 @@ void CipherWordLineEdit::dragEnterEvent(QDragEnterEvent *e)
 void CipherWordLineEdit::dropEvent(QDropEvent *e)
 {
     e->accept();
+    qDebug() << objectName() << ": " << __FUNCTION__  << ": " << e->mimeData()->text();
     QString newText(e->mimeData()->data("application/x-qabstractitemmodeldatalist"));
     if(newText.size() == text().size())
     {
