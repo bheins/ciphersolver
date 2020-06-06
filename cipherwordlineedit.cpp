@@ -1,11 +1,15 @@
 #include "cipherwordlineedit.h"
+#include "cipherobject.h"
 #include <QDropEvent>
 #include <QMimeData>
 #include <QDebug>
 
-CipherWordLineEdit::CipherWordLineEdit(QWidget* parent)
+CipherWordLineEdit::CipherWordLineEdit(const QMap<int, cipherobj*>& word, int lineIndex, int wordIndex, QWidget* parent)
     : QLineEdit(parent)
+    , Word(word)
+    , Text("")
 {
+    setObjectName(QString("solver_%1_%2").arg(lineIndex).arg(wordIndex));
     setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
     QFont font("Courier, 16");
     setFont(font);
@@ -14,6 +18,33 @@ CipherWordLineEdit::CipherWordLineEdit(QWidget* parent)
     setMinimumWidth(0);
     setMinimumHeight(20);
     setMouseTracking(true);
+
+    QString param;
+    for(const auto& cobj : word)
+    {
+        param.append(cobj->get_untranslated_symbol());
+        connect(cobj, &cipherobj::translation_updated, this, &CipherWordLineEdit::on_translation_updated);
+    }
+    qDebug() << objectName() << ":" << param;
+    on_translation_updated();
+}
+
+QString CipherWordLineEdit::text() const
+{
+    return Text;
+}
+
+void CipherWordLineEdit::setText(const QString & newText)
+{
+    qDebug() << objectName() << ":" << newText;
+    Text=newText;
+    QLineEdit::setText(newText);
+}
+
+void CipherWordLineEdit::clear()
+{
+    Text.clear();
+    QLineEdit::clear();
 }
 
 void CipherWordLineEdit::dragEnterEvent(QDragEnterEvent *e)
@@ -38,4 +69,24 @@ void CipherWordLineEdit::dropEvent(QDropEvent *e)
                     .arg(text().size());
     }
     QLineEdit::dropEvent(e);
+}
+
+void CipherWordLineEdit::on_translation_updated()
+{
+    QString newText;
+    QString untranslatedText;
+    for(const auto& cobj : Word)
+    {
+        //qDebug() << objectName() << ":" << cobj->get_untranslated_symbol() << "=" << cobj->get_translated_symbol();
+        untranslatedText.append(cobj->get_untranslated_symbol());
+        newText.append(cobj->get_translated_symbol());
+    }
+    Text=newText;
+    qDebug() << objectName() << ":" << untranslatedText << "=" << Text;
+    QLineEdit::setText(Text);
+}
+
+void CipherWordLineEdit::changeEvent(QEvent *)
+{
+
 }

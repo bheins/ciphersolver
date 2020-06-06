@@ -11,6 +11,10 @@ CONFIG(debug, debug|release) {
     DESTDIR = release
 }
 
+DEPLOY_COMMAND = windeployqt
+DEPLOY_TARGET = $$shell_quote($$shell_path($$DESTDIR\\$${TARGET}.exe))
+DEPLOY_OPTIONS += "--$$DESTDIR"
+
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings
 # depend on your compiler). Please consult the documentation of the
@@ -23,6 +27,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    cipherobject.cpp \
     cipherobjectmenu.cpp \
     ciphertextedit.cpp \
     cipherwordlineedit.cpp \
@@ -31,6 +36,7 @@ SOURCES += \
 
 HEADERS += \
     cipher.h \
+    cipherobject.h \
     cipherobjectmenu.h \
     ciphertextedit.h \
     cipherwordlineedit.h

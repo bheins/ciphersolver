@@ -10,10 +10,6 @@ class cipherobjectmenu : public QMenu
 public:
     explicit cipherobjectmenu(QWidget *parent = nullptr);
     ~cipherobjectmenu() = default;
-
-    QAction* actionAddTranslation;
-    QAction* actionRemoveTranslation;
-    QAction* actionToggleTranslatable;
 };
 
 #endif // CIPHEROBJECTMENU_H

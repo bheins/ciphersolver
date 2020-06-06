@@ -12,8 +12,8 @@
   </property>
   <property name="sizePolicy">
    <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
-    <horstretch>1</horstretch>
-    <verstretch>1</verstretch>
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
    </sizepolicy>
   </property>
   <property name="windowTitle">
@@ -29,21 +29,24 @@
    <widget class="QWidget" name="horizontalLayoutWidget">
     <property name="geometry">
      <rect>
-      <x>0</x>
+      <x>10</x>
       <y>0</y>
       <width>1041</width>
       <height>601</height>
      </rect>
     </property>
-    <layout class="QHBoxLayout" name="CipherUIHorizontalLayout" stretch="1,1,1,1">
+    <layout class="QHBoxLayout" name="CipherUIHorizontalLayout" stretch="0,0">
      <item>
-      <layout class="QVBoxLayout" name="CipherVerticalLayout" stretch="1,1,1,1">
+      <layout class="QVBoxLayout" name="SolverVerticalLayout" stretch="0,0">
+       <property name="spacing">
+        <number>5</number>
+       </property>
        <item>
         <widget class="QTextEdit" name="textEdit">
          <property name="sizePolicy">
           <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
-           <horstretch>1</horstretch>
-           <verstretch>1</verstretch>
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
           </sizepolicy>
          </property>
          <property name="sizeAdjustPolicy">
@@ -62,122 +65,28 @@ p, li { white-space: pre-wrap; }
         </widget>
        </item>
        <item>
-        <spacer name="verticalSpacer">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <property name="sizeType">
-          <enum>QSizePolicy::Fixed</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>10</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item>
-        <widget class="QWidget" name="solver" native="true">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
-           <horstretch>1</horstretch>
-           <verstretch>1</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="mouseTracking">
-          <bool>true</bool>
-         </property>
-         <property name="tabletTracking">
-          <bool>true</bool>
-         </property>
-         <property name="contextMenuPolicy">
-          <enum>Qt::CustomContextMenu</enum>
-         </property>
-         <property name="acceptDrops">
-          <bool>true</bool>
-         </property>
-         <widget class="QWidget" name="verticalLayoutWidget">
-          <property name="geometry">
-           <rect>
-            <x>0</x>
-            <y>0</y>
-            <width>341</width>
-            <height>181</height>
-           </rect>
-          </property>
-          <layout class="QVBoxLayout" name="SolverVerticalLayout" stretch=""/>
-         </widget>
-        </widget>
-       </item>
-       <item>
-        <spacer name="verticalSpacer_2">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <property name="sizeType">
-          <enum>QSizePolicy::MinimumExpanding</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>40</height>
-          </size>
-         </property>
-        </spacer>
+        <widget class="QWidget" name="Solver" native="true"/>
        </item>
       </layout>
      </item>
      <item>
-      <spacer name="horizontalSpacer_2">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeType">
-        <enum>QSizePolicy::Fixed</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>10</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item>
-      <widget class="QWidget" name="widget_2" native="true">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <widget class="QWidget" name="verticalLayoutWidget_2">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>0</y>
-          <width>258</width>
-          <height>601</height>
-         </rect>
-        </property>
-        <layout class="QVBoxLayout" name="verticalLayout" stretch="1,1,1,1,1,1">
-         <item>
-          <widget class="QPlainTextEdit" name="plainTextEdit">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="acceptDrops">
-            <bool>false</bool>
-           </property>
-           <property name="readOnly">
-            <bool>true</bool>
-           </property>
-           <property name="plainText">
-            <string>Match against words list in databases folder by a regex using backreferencing and capture groups.  Use the following customized matching syntax for your words.
+      <layout class="QVBoxLayout" name="CipherVerticalLayout" stretch="0,0,0">
+       <item>
+        <widget class="QPlainTextEdit" name="plainTextEdit">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+           <horstretch>0</horstretch>
+           <verstretch>1</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="acceptDrops">
+          <bool>false</bool>
+         </property>
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
+         <property name="plainText">
+          <string>Match against words list in databases folder by a regex using backreferencing and capture groups.  Use the following customized matching syntax for your words.
 
 Unknown letters should be matched as &quot;.&quot;.
 
@@ -195,120 +104,54 @@ Examples:
 &quot;b1n1n1&quot; if &quot;b&quot; and &quot;n&quot; are known with unknown &quot;a&quot; repeating.
 
 &quot;b12121&quot; if &quot;b&quot; is known with unknown &quot;a&quot; and &quot;n&quot; repeating.</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="verticalSpacer_4">
-           <property name="orientation">
-            <enum>Qt::Vertical</enum>
-           </property>
-           <property name="sizeType">
-            <enum>QSizePolicy::Fixed</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>20</width>
-             <height>10</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="wordFilter">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-             <horstretch>1</horstretch>
-             <verstretch>1</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="text">
-            <string notr="true"/>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="verticalSpacer_5">
-           <property name="orientation">
-            <enum>Qt::Vertical</enum>
-           </property>
-           <property name="sizeType">
-            <enum>QSizePolicy::Fixed</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>20</width>
-             <height>10</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QListWidget" name="wordSelection">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
-             <horstretch>1</horstretch>
-             <verstretch>1</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="mouseTracking">
-            <bool>true</bool>
-           </property>
-           <property name="tabletTracking">
-            <bool>true</bool>
-           </property>
-           <property name="acceptDrops">
-            <bool>false</bool>
-           </property>
-           <property name="sizeAdjustPolicy">
-            <enum>QAbstractScrollArea::AdjustToContents</enum>
-           </property>
-           <property name="dragEnabled">
-            <bool>true</bool>
-           </property>
-           <property name="dragDropMode">
-            <enum>QAbstractItemView::DragDrop</enum>
-           </property>
-           <property name="sortingEnabled">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="verticalSpacer_6">
-           <property name="orientation">
-            <enum>Qt::Vertical</enum>
-           </property>
-           <property name="sizeType">
-            <enum>QSizePolicy::MinimumExpanding</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>20</width>
-             <height>40</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-        </layout>
-       </widget>
-      </widget>
-     </item>
-     <item>
-      <spacer name="horizontalSpacer">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeType">
-        <enum>QSizePolicy::MinimumExpanding</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>10</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="wordFilter">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string notr="true"/>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QListWidget" name="wordSelection">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+           <horstretch>0</horstretch>
+           <verstretch>1</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="mouseTracking">
+          <bool>true</bool>
+         </property>
+         <property name="tabletTracking">
+          <bool>true</bool>
+         </property>
+         <property name="acceptDrops">
+          <bool>false</bool>
+         </property>
+         <property name="sizeAdjustPolicy">
+          <enum>QAbstractScrollArea::AdjustToContents</enum>
+         </property>
+         <property name="dragEnabled">
+          <bool>true</bool>
+         </property>
+         <property name="dragDropMode">
+          <enum>QAbstractItemView::DragDrop</enum>
+         </property>
+         <property name="sortingEnabled">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </item>
     </layout>
    </widget>

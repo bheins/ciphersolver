@@ -19,33 +19,10 @@
 #include <QTextStream>
 #include <QString>
 #include <QListWidget>
-
-void cipherobj::add_translation(QString known)
-{
-    translated_symbol = known;
-    translated = true;
-}
-
-QString cipherobj::get_translated_symbol() const
-{
-    return translated_symbol;
-}
-
-void cipherobj::set_untranslated_symbol(const QString& symbol)
-{
-    untranslated_symbol = symbol;
-}
-
-QString cipherobj::get_untranslated_symbol() const
-{
-    return untranslated_symbol;
-}
-
-bool cipherobj::is_translated() const
-{
-    return translated;
-}
-
+#include <QObject>
+#include <cipherobject.h>
+#include <QHash>
+#include <QMutexLocker>
 
 cipher::cipher(QWidget *parent)
     : QMainWindow(parent)
@@ -54,24 +31,15 @@ cipher::cipher(QWidget *parent)
     , TheCipher()
     , TheSolution()
     , ui(new Ui::CipherUI)
-    , TheMenu()
+    , CipherMutex()
 {
     ui->setupUi(this);
-    ui->textEdit->setContextMenuPolicy(Qt::CustomContextMenu);
     load_dictionary();
-
-    //connectSlotsByName takes care of these for us (slot name must be written as on_object_signal)
-    //connect(ui->textEdit, &QWidget::customContextMenuRequested, this, &cipher::on_textEdit_customContextMenuRequested);
-    //connect(ui->textEdit, &QTextEdit::textChanged, this, &cipher::on_textEdit_textChanged);
-    //connect(ui->wordFilter, &QLineEdit::textEdited, this, &cipher::on_wordFilter_textEdited);
-    //connect(ui->wordSelection, &QListWidget::itemClicked, this, &cipher::on_wordSelection_itemClicked);
 }
 
-cipher::~cipher() = default;
-
-void cipher::reapply_highlighting_rules()
+cipher::~cipher()
 {
-
+    qDeleteAll(TheSolution);
 }
 
 void cipher::load_dictionary()
@@ -121,30 +89,36 @@ void cipher::load_dictionary()
 
 void cipher::on_textEdit_textChanged()
 {
-    parse_text();
+    QMutexLocker locker(&CipherMutex);
+    update_cipher();
     build_interactive_solver();
 }
 
-void cipher::UpdateCipher()
+void cipher::update_cipher()
 {
     QString newText(ui->textEdit->toPlainText());
     TheCipher.clear();
+
+    qDeleteAll(TheSolution);
+    TheSolution.clear();
+
     TheCipher.reserve(newText.size());//includes spaces, but will be large enough
+    int index = 0;
     for(const auto& sentence : ui->textEdit->toPlainText().split("\n"))
     {
         int two_letter_words=std::count_if(sentence.begin(), sentence.end(), [](QString word){return word.size() == 2;});
         int word_count = sentence.split(" ").size();
         bool using_split_words=two_letter_words == word_count;
 
-        QVector<QVector<cipherobj> > theSentence;
+        QVector<QVector<QString> > theSentence;
         for(const auto& word : sentence.split(using_split_words ? "  ": " "))
         {
-            QVector<cipherobj> theWord;
+            QVector<QString> theWord;
             for(const auto& symbol: word)
             {
-                cipherobj theCipherObj;
-                theCipherObj.set_untranslated_symbol(symbol);
-                theWord.push_back(theCipherObj);
+                theWord.push_back(symbol);
+                TheSolution[index]=new cipherobj(symbol);
+                ++index;
             }
             theSentence.push_back(theWord);
         }
@@ -152,137 +126,114 @@ void cipher::UpdateCipher()
     }
 }
 
-void cipher::UpdateSolution()
+void cipher::on_cipherwordlineedit_customContextMenuRequested(QPoint pos)
 {
-    QStringList cipherText;
-    QStringList solutionText;
-    for(const auto& line : TheCipher)
+    CipherWordLineEdit* lineEdit(qobject_cast<CipherWordLineEdit*>(sender()));
+    QString text(lineEdit->text());
+
+    QString rePattern=text.replace("-",".").prepend("^").append("$");
+    QRegExp searchFilter(rePattern, Qt::CaseInsensitive);
+    QStringList filteredDatabaseList(Dictionary.filter(searchFilter));
+    qDebug() << "wordFilter=" << rePattern << ".  FilteredDatabase resulted in " << filteredDatabaseList.size() << " items.";
+
+    QPoint globalPos = lineEdit->mapToGlobal(pos);
+    cipherobjectmenu solutionMenu;
+    solutionMenu.move(globalPos);
+    for(auto action : filteredDatabaseList)
     {
-        for(const auto& word : line)
-        {
-            QString cipherWord;
-            QString solutionWord;
-            for(const auto& symbolObj : word)
-            {
-                const auto& symbol = symbolObj.get_untranslated_symbol();
-                if(not TheSolution.contains(symbol))
-                {
-                    TheSolution.insert(symbol, QString("_"));
-                }
-                cipherWord.append(symbol);
-                solutionWord.append(TheSolution[symbol]);
-            }
-            cipherText.append(cipherWord);
-            solutionText.append(solutionWord);
-        }
-        solutionText.append(" ");
+        solutionMenu.addAction(action);
     }
-    qDebug() << "Cipher=" << cipherText.join(" ");
-    qDebug() << "Solution=" << solutionText.join(" ");
-}
+    solutionMenu.show();
 
-void cipher::RemoveUnusedSymbolsFromSolution()
-{
-    for(const auto& symbol : TheSolution.keys())
-    {
-        if(not CipherContainsSymbol(symbol))
-        {
-            TheSolution.remove(symbol);
-        }
-    }
-}
-
-void cipher::parse_text()
-{
-    UpdateCipher();
-    UpdateSolution();
-    RemoveUnusedSymbolsFromSolution();
-}
-
-bool cipher::CipherContainsSymbol(const QString& symbol)
-{
-    bool found=false;
-    for(const auto& line : TheCipher)
-    {
-        for(const auto& word : line)
-        {
-            if(std::any_of(word.constBegin(), word.constEnd(), [&](cipherobj obj) {return obj.get_untranslated_symbol() == symbol;}))
-            {
-                found=true;
-                break;
-            }
-        }
-    }
-    return found;
-}
-
-void cipher::on_textEdit_customContextMenuRequested(QPoint pos)
-{
-    QTextCursor textEditCursor(ui->textEdit->textCursor());
-    textEditCursor.select(QTextCursor::WordUnderCursor);
-    CurrentWord = textEditCursor.selection().toPlainText();
-    qDebug() << " Selected word=" << CurrentWord << " Column=" << textEditCursor.columnNumber();
-
-    QPoint globalPos = ui->textEdit->mapToGlobal(pos);
-    TheMenu.move(globalPos);
-    TheMenu.show();
-
-    QAction* selectedItem = TheMenu.exec(globalPos);
+    QAction* selectedItem = solutionMenu.exec(globalPos);
     if(nullptr not_eq selectedItem)
     {
-        qDebug() << selectedItem->text();
-        if(selectedItem == TheMenu.actionToggleTranslatable)
-        {
-            qDebug() << "Toggle translation allowed for block" << ui->textEdit->textCursor().blockNumber();
-        }
+        qDebug() << "Setting " << lineEdit->objectName() << " existing text " << lineEdit->text() << "=" << selectedItem->text();
+        lineEdit->setText(selectedItem->text());
     }
 }
 
 void cipher::build_interactive_solver()
 {
-    for(QWidget* box : ui->solver->findChildren<QWidget*>(""))
+    QWidget* solver(ui->SolverVerticalLayout->findChild<QWidget*>("Solver"));
+    if(nullptr not_eq solver)
     {
-        delete box;
-        box = nullptr;
+        QList<QWidget*> solverWidgets(solver->findChildren<QWidget*>(".+"));
+        for(auto widget : solverWidgets)
+        {
+            ui->SolverVerticalLayout->removeWidget(widget);
+            delete widget;
+        }
+        ui->SolverVerticalLayout->removeWidget(solver);
+        delete solver;
     }
+    solver = new QWidget(this);
+    solver->setObjectName("Solver");
 
     int lineCount = 0;
     for(const auto& line : TheCipher)
     {
-        QWidget *wordsGroupBox = new QWidget(ui->solver);
+        QWidget *wordsGroupBox = new QWidget(solver);
         wordsGroupBox->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
         QHBoxLayout *wordsLayout = new QHBoxLayout;
         wordsLayout->addStretch(1);
-        wordsLayout->addSpacerItem(new QSpacerItem(10,0, QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding));
 
         int wordCount = 0;
+        QWidget *untranslatedWordsGroupBox = new QWidget(solver);
+        untranslatedWordsGroupBox->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
+        QHBoxLayout *untranslatedWordsLayout = new QHBoxLayout;
+        untranslatedWordsLayout->addStretch(1);
+        untranslatedWordsLayout->setSpacing(1);
+
         for(const auto& word: line)
         {
-            CipherWordLineEdit *wordEditor = new CipherWordLineEdit(wordsGroupBox);
-            wordEditor->setObjectName(QString("solver_%1_%2").arg(lineCount).arg(wordCount));
+            QMap<int, cipherobj*> wordTranslation;
+            int symbolCount=0;
+            for(const auto& symbol: word)
+            {
+                wordTranslation.insert(symbolCount, find_cipher_by_untranslated_symbol(symbol));
+                ++symbolCount;
+            }
+            QString lineEditTranslation;
+            for(const auto cobj: wordTranslation)
+            {
+                lineEditTranslation.append(cobj->get_untranslated_symbol());
+            }
+            qDebug() << __PRETTY_FUNCTION__ << ":" << lineEditTranslation;
+            CipherWordLineEdit *wordEditor = new CipherWordLineEdit(wordTranslation, lineCount, wordCount, wordsGroupBox);
+
+            QLineEdit* untranslatedWordText = new QLineEdit(untranslatedWordsGroupBox);
+            untranslatedWordText->setReadOnly(true);
 
             QString translation;
-            for(auto& cipherObj: word)
+            QString untranslated;
+            for(const auto& symbol: word)
             {
-                translation.append(cipherObj.get_translated_symbol());
+                translation.append(find_cipher_by_untranslated_symbol(symbol)->get_translated_symbol());
+                untranslated.append(symbol);
             }
-            wordEditor->setText(translation);
-            wordEditor->setTextMargins(5,5,5,5);
-            connect(wordEditor, &QLineEdit::textChanged, this, &cipher::solver_textChanged);
+            wordEditor->setTextMargins(2,2,2,2);
+            wordEditor->setContextMenuPolicy(Qt::CustomContextMenu);
+            connect(wordEditor, &QLineEdit::textChanged, this, &cipher::solver_textChanged, Qt::UniqueConnection);
+            connect(wordEditor, &QLineEdit::customContextMenuRequested, this, &cipher::on_cipherwordlineedit_customContextMenuRequested);
+            untranslatedWordText->setText(QString(untranslated));
+            untranslatedWordText->setStyleSheet("* { background-color: rgba(0, 0, 0, 0); }");
+            untranslatedWordText->setFrame(false);
 
             wordsLayout->addWidget(wordEditor);
-            //wordsLayout->addSpacerItem(new QSpacerItem(10,10, QSizePolicy::Fixed, QSizePolicy::Fixed));
+            untranslatedWordsLayout->addWidget(untranslatedWordText);
             ++wordCount;
             wordsGroupBox->setLayout(wordsLayout);
+            untranslatedWordsGroupBox->setLayout(untranslatedWordsLayout);
         }
         wordsGroupBox->show();
+        untranslatedWordsGroupBox->show();
         ++lineCount;
-        ui->SolverVerticalLayout->addWidget(wordsGroupBox);
-    }
 
-    //ui->solver->resize(ui->textEdit->sizeHint());
-    //qDebug() << "Solver sizeHint=(" << ui->solver->sizeHint().width() << ", " << ui->solver->sizeHint().height() << ")";
-    ui->solver->show();
+        ui->SolverVerticalLayout->addWidget(wordsGroupBox);
+        ui->SolverVerticalLayout->addWidget(untranslatedWordsGroupBox);
+    }
+    solver->show();
 }
 
 void cipher::solver_textChanged(const QString& text)
@@ -290,29 +241,44 @@ void cipher::solver_textChanged(const QString& text)
     QString lineEditor(sender()->objectName());
     QRegularExpression re("^solver_(?P<Line>\\d+)_(?P<Word>\\d+)$");
     QRegularExpressionMatch cipherMatcher = re.match(lineEditor);
-    qDebug() << lineEditor;
+
     int line(cipherMatcher.captured("Line").toInt());
     int word(cipherMatcher.captured("Word").toInt());
 
     int symbol_index = 0;
-    if(text.size() == TheCipher[line][word].size())
+    QVector<QString> cipherword = TheCipher[line][word];
+    if(text.size() == cipherword.size())
     {
-        for(const auto& symbol : text.split("", QString::SkipEmptyParts))
+        for(const auto& symbol : text.split("", Qt::SkipEmptyParts))
         {
-            bool translated(symbol not_eq "_");
-            if(translated)
+            cipherobj* untranslated_cipher_obj(find_cipher_by_untranslated_symbol(cipherword[symbol_index]));
+            if(symbol == "")
             {
-                TheCipher[line][word][symbol_index].add_translation(symbol);
+                qDebug() << QString("Clearing translation for %1=%2").arg(cipherword[symbol_index]).arg(symbol);
+                untranslated_cipher_obj->add_translation(symbol);
             }
-
+            else if(symbol not_eq "-")
+            {
+                qDebug() << lineEditor << ":" << "untranslated symbol=" << untranslated_cipher_obj->get_untranslated_symbol() << ", translated symbol=" << untranslated_cipher_obj->get_translated_symbol();
+                if(untranslated_cipher_obj->get_translated_symbol() not_eq symbol)
+                {
+                    qDebug() << QString("Adding translation for %1=%2").arg(cipherword[symbol_index]).arg(symbol);
+                    untranslated_cipher_obj->add_translation(symbol);
+                    qDebug() << lineEditor << ":" << "untranslated symbol=" << untranslated_cipher_obj->get_untranslated_symbol() << ", translated symbol=" << untranslated_cipher_obj->get_translated_symbol();
+                }
+            }
             ++symbol_index;
         }
-        UpdateSolution();
-        RemoveUnusedSymbolsFromSolution();
+//        RemoveUnusedSymbolsFromSolution();
     }
     else
     {
-        qDebug() << QString("New Text (%1) for Cipher[%2][%3] does not match length.").arg(text).arg(line).arg(word);
+        QString cipherString="";
+        for (auto& symbol: cipherword)
+        {
+            cipherString.append(symbol);
+        }
+        qDebug() << QString("New Text (%1) for Cipher[%2][%3] (%4) does not match length (%5).").arg(text).arg(line).arg(word).arg(cipherString).arg(cipherword.size());
     }
 }
 
@@ -383,4 +349,31 @@ void cipher::on_wordFilter_textEdited(const QString& text)
 void cipher::on_wordSelection_itemClicked(QListWidgetItem *selection)
 {
     qDebug() << "User selected " << selection->text();
+}
+
+cipherobj* cipher::find_cipher_by_untranslated_symbol(const QString& symbol)
+{
+    auto it = std::find_if(TheSolution.constBegin(), TheSolution.constEnd(), [&](cipherobj* cipher)
+    {
+            bool match = (symbol == cipher->get_untranslated_symbol());
+            qDebug() << __PRETTY_FUNCTION__ << ": " << symbol << (match ? "==" : "!=") << cipher->get_untranslated_symbol();
+            return match;
+             }
+             );
+    cipherobj* cobj(it == TheSolution.constEnd() ? nullptr : *it);
+    return cobj;
+}
+
+cipherobj* cipher::find_cipher_by_translated_symbol(const QString& symbol)
+{
+    auto it = std::find_if(TheSolution.constBegin(), TheSolution.constEnd(), [&](cipherobj* cipher)
+    {
+            bool match = (symbol == cipher->get_translated_symbol());
+            qDebug() << __PRETTY_FUNCTION__ << ": " << symbol << (match ? "==" : "!=") << cipher->get_translated_symbol();
+            return match;
+             }
+             );
+    cipherobj* cobj(it == TheSolution.constEnd() ? nullptr : *it);
+
+    return cobj;
 }
