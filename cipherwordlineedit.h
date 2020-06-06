@@ -17,7 +17,6 @@ public:
 protected:
     void dropEvent(QDropEvent *e) override;
     void dragEnterEvent(QDragEnterEvent *) override;
-    void changeEvent(QEvent *) override;
 
 private slots:
     void on_translation_updated();

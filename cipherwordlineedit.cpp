@@ -22,10 +22,8 @@ CipherWordLineEdit::CipherWordLineEdit(const QMap<int, cipherobj*>& word, int li
     QString param;
     for(const auto& cobj : word)
     {
-        param.append(cobj->get_untranslated_symbol());
         connect(cobj, &cipherobj::translation_updated, this, &CipherWordLineEdit::on_translation_updated);
     }
-    qDebug() << objectName() << ":" << param;
     on_translation_updated();
 }
 
@@ -36,7 +34,6 @@ QString CipherWordLineEdit::text() const
 
 void CipherWordLineEdit::setText(const QString & newText)
 {
-    qDebug() << objectName() << ":" << newText;
     Text=newText;
     QLineEdit::setText(newText);
 }
@@ -83,11 +80,5 @@ void CipherWordLineEdit::on_translation_updated()
         newText.append(cobj->get_translated_symbol());
     }
     Text=newText;
-    qDebug() << objectName() << ":" << untranslatedText << "=" << Text;
     QLineEdit::setText(Text);
-}
-
-void CipherWordLineEdit::changeEvent(QEvent *)
-{
-
 }

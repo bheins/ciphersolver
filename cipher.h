@@ -33,8 +33,11 @@ private:
     void build_interactive_solver();
     void update_cipher();
     void update_solution();
+    bool is_untranslated(const QString &symbol);
     cipherobj *find_cipher_by_untranslated_symbol(const QString &symbol);
     cipherobj *find_cipher_by_translated_symbol(const QString& symbol);
+    QVector<int> find_all_matching_untranslated_symbols(const int line, const int word, const int symbol_index);
+    QString generate_regex_search_string_from_pattern(const QString &text);
 
     QStringList Dictionary;
     QString CurrentSymbol;
