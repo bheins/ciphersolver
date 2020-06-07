@@ -22,7 +22,9 @@
 #include <QObject>
 #include <cipherobject.h>
 #include <QHash>
-#include <QMutexLocker>
+#include <QFileDialog>
+#include <QVariant>
+#include <QDateTime>
 
 cipher::cipher(QWidget *parent)
     : QMainWindow(parent)
@@ -31,8 +33,10 @@ cipher::cipher(QWidget *parent)
     , TheCipher()
     , TheSolution()
     , ui(new Ui::CipherUI)
-    , CipherMutex()
+    , SettingsFile("cipher.ini")
+    , Settings(SettingsFile, QSettings::IniFormat)
 {
+//    qRegisterMetaType<Cipher>("Cipher");
     ui->setupUi(this);
     load_dictionary();
 }
@@ -89,19 +93,19 @@ void cipher::load_dictionary()
 
 void cipher::on_textEdit_textChanged()
 {
-    QMutexLocker locker(&CipherMutex);
     update_cipher();
+//    remove_unused_symbols();
     build_interactive_solver();
+}
+
+void cipher::remove_unused_symbols()
+{
 }
 
 void cipher::update_cipher()
 {
     QString newText(ui->textEdit->toPlainText());
     TheCipher.clear();
-
-    qDeleteAll(TheSolution);
-    TheSolution.clear();
-
     TheCipher.reserve(newText.size());//includes spaces, but will be large enough
     int index = 0;
     for(const auto& sentence : ui->textEdit->toPlainText().split("\n"))
@@ -200,32 +204,30 @@ void cipher::build_interactive_solver()
     QWidget* solver(ui->SolverVerticalLayout->findChild<QWidget*>("Solver"));
     if(nullptr not_eq solver)
     {
-        QList<QWidget*> solverWidgets(solver->findChildren<QWidget*>(".+"));
-        for(auto widget : solverWidgets)
-        {
-            qDebug() << "removing widget " << widget->objectName();
-            ui->SolverVerticalLayout->removeWidget(widget);
-            delete widget;
-        }
         ui->SolverVerticalLayout->removeWidget(solver);
         delete solver;
     }
     solver = new QWidget(this);
+    ui->Solver=solver;
     solver->setObjectName("Solver");
+    solver->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+
+    QVBoxLayout *linesLayout = new QVBoxLayout();
+    linesLayout->setSpacing(1);
 
     int lineCount = 0;
     for(const auto& line : TheCipher)
     {
         QWidget *lineGroupBox = new QWidget(solver);
-        QHBoxLayout *linesLayout = new QHBoxLayout;
-        lineGroupBox->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
-        linesLayout->setSpacing(1);
+        QHBoxLayout *lineLayout = new QHBoxLayout;
+        lineGroupBox->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+        lineLayout->setSpacing(1);
 
         int wordCount = 0;
         for(const auto& word: line)
         {
             QWidget *wordGroupBox = new QWidget(solver);
-            wordGroupBox->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
+            wordGroupBox->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
             QVBoxLayout *wordsLayout = new QVBoxLayout;
             wordsLayout->setSpacing(1);
 
@@ -238,6 +240,7 @@ void cipher::build_interactive_solver()
             }
 
             CipherWordLineEdit *wordEditor = new CipherWordLineEdit(wordTranslation, lineCount, wordCount, wordGroupBox);
+            wordEditor->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
             wordEditor->setTextMargins(2,2,2,2);
             wordEditor->setContextMenuPolicy(Qt::CustomContextMenu);
             connect(wordEditor, &QLineEdit::textChanged, this, &cipher::solver_textChanged, Qt::UniqueConnection);
@@ -245,6 +248,9 @@ void cipher::build_interactive_solver()
 
             QLineEdit* untranslatedWordText = new QLineEdit(wordGroupBox);
             untranslatedWordText->setReadOnly(true);
+            untranslatedWordText->setStyleSheet("* { background-color: rgba(0, 0, 0, 0); }");
+            untranslatedWordText->setFrame(false);
+            untranslatedWordText->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
 
             QString untranslated;
             for(const auto& symbol: word)
@@ -252,23 +258,23 @@ void cipher::build_interactive_solver()
                 untranslated.append(symbol);
             }
             untranslatedWordText->setText(QString(untranslated));
-            untranslatedWordText->setStyleSheet("* { background-color: rgba(0, 0, 0, 0); }");
-            untranslatedWordText->setFrame(false);
 
             wordsLayout->addWidget(wordEditor);
             wordGroupBox->setLayout(wordsLayout);
             wordGroupBox->show();
 
             wordsLayout->addWidget(untranslatedWordText);
-            linesLayout->addWidget(wordGroupBox);
+            lineLayout->addWidget(wordGroupBox);
             ++wordCount;
         }
-        lineGroupBox->setLayout(linesLayout);
+        linesLayout->addWidget(lineGroupBox);
+        lineGroupBox->setLayout(lineLayout);
         lineGroupBox->show();
-        ++lineCount;
 
-        ui->SolverVerticalLayout->addWidget(lineGroupBox);
+        ++lineCount;
     }
+    solver->setLayout(linesLayout);
+    ui->SolverVerticalLayout->addWidget(solver);
     solver->show();
 }
 
@@ -430,4 +436,90 @@ cipherobj* cipher::find_cipher_by_translated_symbol(const QString& symbol)
     cipherobj* cobj(it == TheSolution.constEnd() ? nullptr : *it);
 
     return cobj;
+}
+
+void cipher::on_actionOpen_triggered(bool)
+{
+    qDebug() << __PRETTY_FUNCTION__;
+    QString fileName = Settings.value("LastSaveFile").toString();
+    fileName = QFileDialog::getOpenFileName(this,
+                                            tr("Load Cipher"), fileName,
+                                            tr("Cipher (*.cpr);;All Files (*)"));
+    QSettings loadFile(fileName, QSettings::IniFormat);
+    ui->textEdit->clear();
+    qDeleteAll(TheSolution);
+    TheCipher.clear();
+
+    ui->textEdit->setText(loadFile.value("Cipher").toString());
+    loadFile.beginGroup("Solution");
+    int symbol_index=0;
+    for(auto settingsValue : loadFile.childKeys())
+    {
+        TheSolution[symbol_index] = new cipherobj(settingsValue);
+        TheSolution[symbol_index]->add_translation(loadFile.value(settingsValue).toString());
+        ++symbol_index;
+    }
+    loadFile.endGroup();
+}
+
+void cipher::save_cipher(const QString& fileName)
+{
+    QSettings saveFile(fileName, QSettings::IniFormat);
+    saveFile.setValue("Cipher", QVariant::fromValue(ui->textEdit->toPlainText()));
+    saveFile.beginGroup("Solution");
+
+    for(const auto& cobj : TheSolution)
+    {
+        if(cobj->get_translated_symbol() not_eq "-")
+        {
+            saveFile.setValue(cobj->get_untranslated_symbol(), cobj->get_translated_symbol());
+        }
+    }
+    saveFile.endGroup();
+    saveFile.sync();
+    if(QSettings::AccessError == saveFile.status())
+    {
+        qDebug() << "Error creating file " << fileName;
+    }
+    else
+    {
+        Settings.beginGroup("Save");
+        Settings.setValue("LastSaveFile", fileName);
+        Settings.setValue("LastSavedTime", QDateTime::currentDateTimeUtc());
+        Settings.endGroup();
+        Settings.sync();
+    }
+}
+
+void cipher::on_actionSave_As_triggered(bool)
+{
+    QString fileName = QFileDialog::getSaveFileName(this,
+            tr("Save Cipher"), "",
+            tr("Cipher (*.cpr);;All Files (*)"));
+
+    save_cipher(fileName);
+}
+
+void cipher::on_actionSave_triggered(bool)
+{
+    QString lastSaveFile = Settings.value("LastSaveFile").toString();
+
+    if(lastSaveFile.isEmpty())
+    {
+        on_actionSave_As_triggered(false);
+    }
+    else
+    {
+        save_cipher(lastSaveFile);
+    }
+}
+
+void cipher::on_actionClose_triggered(bool)
+{
+    qDebug() << __PRETTY_FUNCTION__;
+}
+
+void cipher::on_actionExit_triggered(bool)
+{
+    qDebug() << __PRETTY_FUNCTION__;
 }

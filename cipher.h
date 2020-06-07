@@ -1,16 +1,18 @@
 #ifndef CIPHER_H
 #define CIPHER_H
 
+#include "cipherobjectmenu.h"
 #include <QMainWindow>
 #include <QHash>
 #include <QListWidgetItem>
-#include "cipherobjectmenu.h"
 #include <QRecursiveMutex>
-#include <QMutex>
+#include <QSettings>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class CipherUI; }
 QT_END_NAMESPACE
+
+//typedef QVector<QVector<QVector<QString> > > Cipher;
 
 class cipherobj;
 class cipher : public QMainWindow
@@ -27,6 +29,11 @@ private slots:
     void on_cipherwordlineedit_customContextMenuRequested(QPoint pos);
     void on_wordFilter_textEdited(const QString &text);
     void on_wordSelection_itemClicked(QListWidgetItem *item);
+    void on_actionSave_triggered(bool);
+    void on_actionSave_As_triggered(bool);
+    void on_actionOpen_triggered(bool);
+    void on_actionClose_triggered(bool);
+    void on_actionExit_triggered(bool);
 
 private:
     void load_dictionary();
@@ -34,6 +41,8 @@ private:
     void update_cipher();
     void update_solution();
     bool is_untranslated(const QString &symbol);
+    void save_cipher(const QString &fileName);
+    void remove_unused_symbols();
     cipherobj *find_cipher_by_untranslated_symbol(const QString &symbol);
     cipherobj *find_cipher_by_translated_symbol(const QString& symbol);
     QVector<int> find_all_matching_untranslated_symbols(const int line, const int word, const int symbol_index);
@@ -45,6 +54,10 @@ private:
     QVector<QVector<QVector<QString> > > TheCipher;
     QMap<int, cipherobj*> TheSolution;
     QScopedPointer<Ui::CipherUI> ui;
-    QMutex CipherMutex;
+    QString SettingsFile;
+    QSettings Settings;
 };
+//Q_DECLARE_METATYPE(Cipher)
+//QDataStream & operator<<(QDataStream & dataStream, const Cipher & objectA );
+//QDataStream & operator>>(QDataStream & dataStream, Cipher & objectA);
 #endif // CIPHER_H
