@@ -24,14 +24,14 @@ public:
     ~cipher();
 
 private slots:
-    void on_textEdit_textChanged();
+    void on_Cipher_textChanged();
     void solver_textChanged(const QString &text);
-    void on_cipherwordlineedit_customContextMenuRequested(QPoint pos);
+    void show_custom_word_menu_selection(QPoint pos);
     void on_wordFilter_textEdited(const QString &text);
     void on_wordSelection_itemClicked(QListWidgetItem *item);
     void on_actionSave_triggered(bool);
     void on_actionSave_As_triggered(bool);
-    void on_actionOpen_triggered(bool);
+    void actionOther_triggered(bool);
     void on_actionClose_triggered(bool);
     void on_actionExit_triggered(bool);
 
@@ -41,12 +41,16 @@ private:
     void update_cipher();
     void update_solution();
     bool is_untranslated(const QString &symbol);
-    void save_cipher(const QString &fileName);
+    bool save_cipher(const QString &filename);
+    void save_cipher_helper(bool allowDiscard);
+    void open_cipher(const QString &filename);
     void remove_unused_symbols();
     cipherobj *find_cipher_by_untranslated_symbol(const QString &symbol);
     cipherobj *find_cipher_by_translated_symbol(const QString& symbol);
     QVector<int> find_all_matching_untranslated_symbols(const int line, const int word, const int symbol_index);
     QString generate_regex_search_string_from_pattern(const QString &text);
+    void reset();
+    void update_recent_files();
 
     QStringList Dictionary;
     QString CurrentSymbol;
@@ -56,6 +60,8 @@ private:
     QScopedPointer<Ui::CipherUI> ui;
     QString SettingsFile;
     QSettings Settings;
+    bool CipherChangeNotSaved;
+    bool SolverChangeNotSaved;
 };
 //Q_DECLARE_METATYPE(Cipher)
 //QDataStream & operator<<(QDataStream & dataStream, const Cipher & objectA );

@@ -10,21 +10,24 @@ CipherWordLineEdit::CipherWordLineEdit(const QMap<int, cipherobj*>& word, int li
     , Text("")
 {
     setObjectName(QString("solver_%1_%2").arg(lineIndex).arg(wordIndex));
-    setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
-    QFont font("Courier, 16");
-    setFont(font);
+    setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+    setTextMargins(1,1,1,1);
+    setMinimumSize(5,0);
     setDragEnabled(true);
     setAcceptDrops(true);
-    setMinimumWidth(0);
-    setMinimumHeight(20);
     setMouseTracking(true);
+    setFont(QFont("Courier", 16, QFont::Normal));
 
     QString param;
     for(const auto& cobj : word)
     {
-        connect(cobj, &cipherobj::translation_updated, this, &CipherWordLineEdit::on_translation_updated);
+        connect(cobj, &cipherobj::translation_updated, this, &CipherWordLineEdit::translation_updated);
     }
-    on_translation_updated();
+    translation_updated();
+}
+
+CipherWordLineEdit::~CipherWordLineEdit()
+{
 }
 
 QString CipherWordLineEdit::text() const
@@ -58,27 +61,21 @@ void CipherWordLineEdit::dropEvent(QDropEvent *e)
     {
         setText(newText);
     }
-    else
-    {
-        qDebug() << QString("New text (%1) size (%2) does not match current text (%3) size (%4).")
-                    .arg(newText)
-                    .arg(newText.size())
-                    .arg(text())
-                    .arg(text().size());
-    }
     QLineEdit::dropEvent(e);
 }
 
-void CipherWordLineEdit::on_translation_updated()
+void CipherWordLineEdit::translation_updated()
 {
     QString newText;
     QString untranslatedText;
     for(const auto& cobj : Word)
     {
-        //qDebug() << objectName() << ":" << cobj->get_untranslated_symbol() << "=" << cobj->get_translated_symbol();
         untranslatedText.append(cobj->get_untranslated_symbol());
         newText.append(cobj->get_translated_symbol());
     }
     Text=newText;
     QLineEdit::setText(Text);
+    QFontMetrics fm(this->font());
+    setFixedSize(fm.horizontalAdvance(Text)+textMargins().left()+textMargins().right()+4,
+                 fm.height()+textMargins().top()+textMargins().bottom()+4);
 }

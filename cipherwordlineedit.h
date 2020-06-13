@@ -10,6 +10,8 @@ class CipherWordLineEdit : public QLineEdit
 
 public:
     CipherWordLineEdit(const QMap<int, cipherobj *> &, const int lineIndex, const int word, QWidget *parent = nullptr);
+    ~CipherWordLineEdit();
+
     QString text() const;
     void setText(const QString &newText);
     void clear();
@@ -19,7 +21,7 @@ protected:
     void dragEnterEvent(QDragEnterEvent *) override;
 
 private slots:
-    void on_translation_updated();
+    void translation_updated();
 
 private:
     QMap<int, cipherobj*> Word;
