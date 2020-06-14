@@ -26,7 +26,7 @@ private slots:
     void on_Cipher_textChanged();
     void solver_textChanged(const QString &text);
     void show_custom_word_menu_selection(QPoint pos);
-    void on_wordFilter_textEdited(const QString &text);
+    void on_wordFilter_returnPressed();
     void on_wordSelection_itemClicked(QListWidgetItem *item);
     void on_actionSave_triggered(bool);
     void on_actionSave_As_triggered(bool);
@@ -34,6 +34,8 @@ private slots:
     void on_actionClose_triggered(bool);
     void on_actionExit_triggered(bool);
     void on_PolySymbolic_stateChanged(int);
+    void on_SearchboxFiltering_stateChanged(int);
+    void on_LoadLast_stateChanged(int);
     void on_ResetCipherButton_clicked();
 
 private:
@@ -49,7 +51,7 @@ private:
     cipherobj *find_cipher_by_untranslated_symbol(const QString &symbol);
     cipherobj *find_cipher_by_translated_symbol(const QString& symbol);
     QVector<int> find_all_matching_untranslated_symbols(const int line, const int word, const int symbol_index);
-    QString generate_regex_symbolic_filter();
+    QString generate_regex_symbolic_filter(bool limitSearchFilter);
     QString generate_regex_search_string_from_pattern(const QString &text); //word filter
     QString generate_regex_match_restrictions(const QVector<QString> &cipherword);
     void reset();
@@ -66,4 +68,5 @@ private:
     bool CipherChangeNotSaved;
     bool SolverChangeNotSaved;
     bool PolySymbolicSearch;
+    bool SearchFilterLimited;
 };

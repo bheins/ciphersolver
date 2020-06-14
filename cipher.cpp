@@ -44,11 +44,21 @@ cipher::cipher(QWidget *parent)
     , CipherChangeNotSaved(false)
     , SolverChangeNotSaved(false)
     , PolySymbolicSearch(false)
+    , SearchFilterLimited(false)
 {
-//    qRegisterMetaType<Cipher>("Cipher");
     ui->setupUi(this);
+    ui->OptionsLayout->setAlignment(Qt::AlignTop);
     load_dictionary();
     update_recent_files();
+    bool loadLast(Settings.value("LoadLast").toBool());
+    ui->LoadLast->setChecked(loadLast);
+    if(loadLast)
+    {
+        qDebug() << "Opening last saved file" << Settings.value("Save/LastSaveFile").toString();
+        open_cipher(Settings.value("Save/LastSaveFile").toString());
+    }
+    bool searchFilterLimited(Settings.value("SearchFilterLimited").toBool());
+    ui->SearchboxFiltering->setChecked(searchFilterLimited);
 }
 
 cipher::~cipher()
@@ -149,12 +159,12 @@ bool cipher::is_untranslated(const QString& symbol)
     return (symbol=="-");
 }
 
-QString cipher::generate_regex_symbolic_filter()
+QString cipher::generate_regex_symbolic_filter(bool limitSearchFilter)
 {
     //Assuming case insensitive for now.
     //Remove translated symbols from unknown match (if using single substitution cipher).
     QString matcher("([abcdefghijklmnopqrstuvwxyz])");
-    if(not PolySymbolicSearch)
+    if(limitSearchFilter)
     {
         std::for_each(TheSolution.constBegin(), TheSolution.constEnd(), [&](const cipherobj* cobj)
         {
@@ -181,10 +191,11 @@ void cipher::show_custom_word_menu_selection(QPoint pos)
     QVector<QString> cipherword = TheCipher[line][word];
 
     QString rePattern=generate_regex_match_restrictions(cipherword).prepend("^").append("$");
-    qDebug() << __PRETTY_FUNCTION__ << ": searching for matching regex on database with " << rePattern;
+    qDebug() << __PRETTY_FUNCTION__ << ": searching for matching regex on database with " << rePattern.toLatin1().constData();
 
     QRegularExpression searchFilter(rePattern, QRegularExpression::CaseInsensitiveOption);
     QStringList filteredDatabaseList(Dictionary.filter(searchFilter));
+    filteredDatabaseList.removeDuplicates();
     qDebug() << __PRETTY_FUNCTION__ << ": found" << filteredDatabaseList.size() << "words";
     QPoint globalPos = lineEdit->mapToGlobal(pos);
     cipherobjectmenu solutionMenu;
@@ -358,7 +369,7 @@ QString cipher::generate_regex_match_restrictions(const QVector<QString>& cipher
     QString positiveLookAround("(?=%1)");
     QString atomicGroup("(?>%1)"); //do not allow backup
     QString knownSymbolMatchGroup("%1");
-    const QString unknownSymbolMatchGroup=generate_regex_symbolic_filter();
+    const QString unknownSymbolMatchGroup=generate_regex_symbolic_filter(not PolySymbolicSearch);
     QString matchGroupReference("\\%1");
 
     QVector<int> matchGroupList(cipherword.size());
@@ -368,29 +379,22 @@ QString cipher::generate_regex_match_restrictions(const QVector<QString>& cipher
     int unknownMatchCount(std::count_if(cipherword.constBegin(), cipherword.constEnd(), [&](const QString& symbol)
         {
             bool match=find_cipher_by_untranslated_symbol(symbol)->is_translated();
-            qDebug() << __PRETTY_FUNCTION__ << ":" << symbol << (match ? "is" : "is not") << "translated";
             if(not match)
             {
                 int first_index_of_untranslated_symbol=cipherword.indexOf(symbol);
-                qDebug() << __PRETTY_FUNCTION__ << ": first symbol index=" << first_index_of_untranslated_symbol << "Match index=" << unknownMatchIndex;
                 if(first_index_of_untranslated_symbol == unknownMatchIndex)
                 {
-                    //newly identified group
                     ++unknownGroupIndex;
-                    qDebug() << __PRETTY_FUNCTION__ << ": new group" << unknownGroupIndex;
                     matchGroupList[unknownMatchIndex]=unknownGroupIndex;
                 }
                 else
                 {
-                    //previously identified group
-                    qDebug() << __PRETTY_FUNCTION__ << ": known group" << matchGroupList[first_index_of_untranslated_symbol];
                     matchGroupList[unknownMatchIndex]=matchGroupList[first_index_of_untranslated_symbol];
                 }
                 ++unknownMatchIndex;
             }
             return not match;
         }));
-    qDebug() << __PRETTY_FUNCTION__ << ": Match Count=" << unknownMatchCount << "Group Count=" << unknownGroupIndex;
 
     QVector<int> lookAheadList(cipherword.size());
     lookAheadList.fill(0);
@@ -416,8 +420,6 @@ QString cipher::generate_regex_match_restrictions(const QVector<QString>& cipher
         {
             lookAheadList[word_index]=*std::max(lookAheadList.constBegin(), lookAheadList.constEnd())+1;
             symbolRegex.append(knownSymbolMatchGroup.arg(cobj->get_translated_symbol()));
-            qDebug() << __PRETTY_FUNCTION__ << ": " << "Adding [" << cobj->get_translated_symbol() << "]";
-            qDebug() << __PRETTY_FUNCTION__ << ": " << symbolRegex;
         }
         else
         {
@@ -430,63 +432,34 @@ QString cipher::generate_regex_match_restrictions(const QVector<QString>& cipher
                 if(first_index_of_untranslated_symbol not_eq word_index)
                 {
                     symbolRegex.prepend(positiveLookAround.arg(matchGroupReference.arg(matchGroupList[first_index_of_untranslated_symbol])));
-
-                    qDebug() << __PRETTY_FUNCTION__ << ": Repeated Translated Symbol first instance [" << untranslated_symbol << "]";
-                    qDebug() << __PRETTY_FUNCTION__ << ": " << symbolRegex;
                 }
                 if(first_index_of_untranslated_symbol == word_index)
                 {
                     int matchGroupRef=*std::max(lookAheadList.constBegin(), lookAheadList.constEnd())+1;
                     lookAheadList[word_index]=matchGroupRef;
-                    if(word_index not_eq cipherword.size())
+                    if(word_index < unknownMatchCount-1)
                     {
                         symbolRegex.append(negativeLookAhead);
                     }
-                    qDebug() << __PRETTY_FUNCTION__ << ": Repeated Translated Symbol [" << untranslated_symbol << "]";
-                    qDebug() << __PRETTY_FUNCTION__ << ": " << symbolRegex;
                 }
             }
             else
             {
-                if(word_index not_eq cipherword.size())
+                if(word_index < unknownMatchCount-1)
                 {
                     symbolRegex.append(negativeLookAhead);
                 }
-                qDebug() << __PRETTY_FUNCTION__ << ": Unrepeated Translated Symbol [" << untranslated_symbol << "]";
-                qDebug() << __PRETTY_FUNCTION__ << ": " << symbolRegex;
             }
         }
         regex.append(symbolRegex);
-        qDebug() << __PRETTY_FUNCTION__ << ": regex=" << regex.toLatin1().constData();
         ++word_index;
     });
 
-    return regex.toLatin1().constData();
+    return regex;
 }
 
 QString cipher::generate_regex_search_string_from_pattern(const QString& pattern)
 {
-    //unknown letters should be matched as ".".
-    //repeated unknown characters should be listed using numbers.
-    //known characters obviously should be included.
-
-    //eg banana would be matched by a regex using backreferencing and capture groups
-    //if no translations are known.
-    //user filter  = "......"
-    //regex filter = "^(.)(.)(.)\2\3\2$"
-
-    //if "a" is known with unknown "n" repeating and "b" not repeating.
-    //user filter  = ".a1a1a"
-    //regex filter = "^(.)a(.)a\2a$" if "a" is known with unknown "n" repeating
-
-    //if "b" and "n" are known with unknown "a" repeating.
-    //user filter  = "b1n1n1"
-    //regex filter = "b([a-z])n\1n\1"
-
-    //if "b" and "n" are known with unknown "a" repeating.
-    //"^b(.)n\1n\1$"
-    //"^b(.)(.)\1\2\1$"
-
     QStringList repeatedSymbolsFilter(QString("123456789").split("", QString::SkipEmptyParts));
 
     int index = 0;
@@ -508,7 +481,7 @@ QString cipher::generate_regex_search_string_from_pattern(const QString& pattern
         {
             if(index == pattern.indexOf(symbol))
             {
-                rePattern.append(generate_regex_symbolic_filter());
+                rePattern.append(generate_regex_symbolic_filter(SearchFilterLimited));
             }
             else
             {
@@ -523,12 +496,14 @@ QString cipher::generate_regex_search_string_from_pattern(const QString& pattern
     return rePattern;
 }
 
-void cipher::on_wordFilter_textEdited(const QString& text)
+void cipher::on_wordFilter_returnPressed()
 {
+    const QString& text(ui->wordFilter->text());
     QString rePattern(generate_regex_search_string_from_pattern(text));
     QRegExp searchFilter(rePattern, Qt::CaseInsensitive);
 
     QStringList filteredDatabaseList(Dictionary.filter(searchFilter));
+    (void)filteredDatabaseList.removeDuplicates();
     ui->wordSelection->clear();
     qDebug() << "wordFilter=" << rePattern << ".  FilteredDatabase resulted in " << filteredDatabaseList.size() << " items.";
     ui->wordSelection->insertItems(0, filteredDatabaseList);
@@ -584,7 +559,7 @@ cipherobj* cipher::find_cipher_by_translated_symbol(const QString& symbol)
 
 void cipher::actionOther_triggered(bool)
 {
-    QString fileName = Settings.value("LastSaveFile").toString();
+    QString fileName = Settings.value("Save/LastSaveFile").toString();
     fileName = QFileDialog::getOpenFileName(this,
                                             tr("Load Cipher"), fileName,
                                             tr("Cipher (*.cpr);;All Files (*)"));
@@ -807,6 +782,21 @@ void cipher::on_PolySymbolic_stateChanged(int)
     bool checked=(Qt::CheckState::Checked==ui->PolySymbolic->checkState());
     qDebug() << "User selection changed PolySymbolic to " << (checked ? "True" : "False");
     PolySymbolicSearch=checked;
+}
+
+void cipher::on_SearchboxFiltering_stateChanged(int)
+{
+    bool searchFilterLimited=(Qt::CheckState::Checked==ui->SearchboxFiltering->checkState());
+    qDebug() << "User selection changed SearchboxFiltering to " << (searchFilterLimited ? "True" : "False");
+    SearchFilterLimited=searchFilterLimited;
+    Settings.setValue("SearchFilterLimited", searchFilterLimited);
+}
+
+void cipher::on_LoadLast_stateChanged(int)
+{
+    bool loadLast=(Qt::CheckState::Checked==ui->LoadLast->checkState());
+    qDebug() << "User selection changed LoadLast to " << (loadLast ? "True" : "False");
+    Settings.setValue("LoadLast", loadLast);
 }
 
 void cipher::on_ResetCipherButton_clicked()
