@@ -1,4 +1,5 @@
 #pragma once
+
 #include <QString>
 #include <QObject>
 
@@ -14,6 +15,8 @@ public:
     QString get_translated_symbol() const;
     void set_untranslated_symbol(const QString& symbol);
     QString get_untranslated_symbol() const;
+    void clear_translation();
+    bool is_translated() const;
 
 signals:
     void translation_updated();

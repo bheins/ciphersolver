@@ -1,5 +1,4 @@
-#ifndef CIPHER_H
-#define CIPHER_H
+#pragma once
 
 #include "cipherobjectmenu.h"
 #include <QMainWindow>
@@ -34,6 +33,8 @@ private slots:
     void actionOther_triggered(bool);
     void on_actionClose_triggered(bool);
     void on_actionExit_triggered(bool);
+    void on_PolySymbolic_stateChanged(int);
+    void on_ResetCipherButton_clicked();
 
 private:
     void load_dictionary();
@@ -48,7 +49,9 @@ private:
     cipherobj *find_cipher_by_untranslated_symbol(const QString &symbol);
     cipherobj *find_cipher_by_translated_symbol(const QString& symbol);
     QVector<int> find_all_matching_untranslated_symbols(const int line, const int word, const int symbol_index);
-    QString generate_regex_search_string_from_pattern(const QString &text);
+    QString generate_regex_symbolic_filter();
+    QString generate_regex_search_string_from_pattern(const QString &text); //word filter
+    QString generate_regex_match_restrictions(const QVector<QString> &cipherword);
     void reset();
     void update_recent_files();
 
@@ -62,8 +65,5 @@ private:
     QSettings Settings;
     bool CipherChangeNotSaved;
     bool SolverChangeNotSaved;
+    bool PolySymbolicSearch;
 };
-//Q_DECLARE_METATYPE(Cipher)
-//QDataStream & operator<<(QDataStream & dataStream, const Cipher & objectA );
-//QDataStream & operator>>(QDataStream & dataStream, Cipher & objectA);
-#endif // CIPHER_H

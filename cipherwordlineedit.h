@@ -1,5 +1,5 @@
-#ifndef CIPHERWORDLINEEDIT_H
-#define CIPHERWORDLINEEDIT_H
+#pragma once
+
 #include <QLineEdit>
 #include <QString>
 
@@ -27,5 +27,3 @@ private:
     QMap<int, cipherobj*> Word;
     QString Text;
 };
-
-#endif // CIPHERWORDLINEEDIT_H

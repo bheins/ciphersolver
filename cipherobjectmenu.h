@@ -1,6 +1,4 @@
-#ifndef CIPHEROBJECTMENU_H
-#define CIPHEROBJECTMENU_H
-
+#pragma once
 #include <QMenu>
 
 class cipherobjectmenu : public QMenu
@@ -11,5 +9,3 @@ public:
     explicit cipherobjectmenu(QWidget *parent = nullptr);
     ~cipherobjectmenu() = default;
 };
-
-#endif // CIPHEROBJECTMENU_H

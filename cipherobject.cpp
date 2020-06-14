@@ -1,5 +1,4 @@
 #include "cipherobject.h"
-#include <QDebug>
 
 cipherobj::cipherobj(const QString& symbol)
 {
@@ -11,10 +10,15 @@ void cipherobj::add_translation(const QString& symbol)
 {
     if(symbol not_eq translated_symbol)
     {
-        qDebug() << __PRETTY_FUNCTION__ << ": " << objectName() << ": " << untranslated_symbol << "=" << symbol;
         translated_symbol = symbol;
         emit translation_updated();
     }
+}
+
+void cipherobj::clear_translation()
+{
+    translated_symbol="";
+    emit translation_updated();
 }
 
 QString cipherobj::get_translated_symbol() const
@@ -36,4 +40,9 @@ void cipherobj::set_untranslated_symbol(const QString& symbol)
 QString cipherobj::get_untranslated_symbol() const
 {
     return untranslated_symbol;
+}
+
+bool cipherobj::is_translated() const
+{
+    return translated_symbol not_eq "";
 }

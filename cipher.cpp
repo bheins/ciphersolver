@@ -43,6 +43,7 @@ cipher::cipher(QWidget *parent)
     , Settings(SettingsFile, QSettings::IniFormat)
     , CipherChangeNotSaved(false)
     , SolverChangeNotSaved(false)
+    , PolySymbolicSearch(false)
 {
 //    qRegisterMetaType<Cipher>("Cipher");
     ui->setupUi(this);
@@ -97,7 +98,6 @@ void cipher::load_dictionary()
     {
         qDebug() << QString("Error opening %1").arg(namesFile.fileName());
     }
-
 }
 
 void cipher::on_Cipher_textChanged()
@@ -149,6 +149,26 @@ bool cipher::is_untranslated(const QString& symbol)
     return (symbol=="-");
 }
 
+QString cipher::generate_regex_symbolic_filter()
+{
+    //Assuming case insensitive for now.
+    //Remove translated symbols from unknown match (if using single substitution cipher).
+    QString matcher("([abcdefghijklmnopqrstuvwxyz])");
+    if(not PolySymbolicSearch)
+    {
+        std::for_each(TheSolution.constBegin(), TheSolution.constEnd(), [&](const cipherobj* cobj)
+        {
+            const QString& translatedSymbol(cobj->get_translated_symbol());
+            if(matcher.contains(translatedSymbol))
+            {
+                matcher.remove(translatedSymbol, Qt::CaseInsensitive);
+            }
+        });
+    }
+
+    return matcher;
+}
+
 void cipher::show_custom_word_menu_selection(QPoint pos)
 {
     CipherWordLineEdit* lineEdit(qobject_cast<CipherWordLineEdit*>(sender()));
@@ -160,43 +180,12 @@ void cipher::show_custom_word_menu_selection(QPoint pos)
     int word(cipherMatcher.captured("Word").toInt());
     QVector<QString> cipherword = TheCipher[line][word];
 
-    QString reSearchPattern="^";
-    QString text(lineEdit->text());
-    int symbol_index=0;
-    int matched_repeating_letter_index=0;
-    for(auto symbol : lineEdit->text().split("", Qt::SkipEmptyParts))
-    {
-        QVector<int> matchingSymbols(find_all_matching_untranslated_symbols(line, word, symbol_index));
-        if(is_untranslated(symbol))
-        {
-            if(matchingSymbols.size() == 1)
-            {
-                text.replace(symbol_index, 1, ".");
-            }
-            else if(matchingSymbols.size() > 1)
-            {
-                for(auto repeat_index : matchingSymbols)
-                {
-                    if(text[repeat_index] not_eq matched_repeating_letter_index)
-                    {
-                        text.replace(repeat_index, 1, QString::number(matched_repeating_letter_index));
-                    }
-                }
-                ++matched_repeating_letter_index;
-            }
-        }
-        else
-        {
-            //match translated symbol exactly
-        }
-        ++symbol_index;
-    }
-    QString rePattern=generate_regex_search_string_from_pattern(text);
+    QString rePattern=generate_regex_match_restrictions(cipherword).prepend("^").append("$");
     qDebug() << __PRETTY_FUNCTION__ << ": searching for matching regex on database with " << rePattern;
 
-    QRegExp searchFilter(rePattern, Qt::CaseInsensitive);
+    QRegularExpression searchFilter(rePattern, QRegularExpression::CaseInsensitiveOption);
     QStringList filteredDatabaseList(Dictionary.filter(searchFilter));
-
+    qDebug() << __PRETTY_FUNCTION__ << ": found" << filteredDatabaseList.size() << "words";
     QPoint globalPos = lineEdit->mapToGlobal(pos);
     cipherobjectmenu solutionMenu;
     solutionMenu.move(globalPos);
@@ -364,6 +353,117 @@ void cipher::solver_textChanged(const QString& text)
     }
 }
 
+QString cipher::generate_regex_match_restrictions(const QVector<QString>& cipherword)
+{
+    QString positiveLookAround("(?=%1)");
+    QString atomicGroup("(?>%1)"); //do not allow backup
+    QString knownSymbolMatchGroup("%1");
+    const QString unknownSymbolMatchGroup=generate_regex_symbolic_filter();
+    QString matchGroupReference("\\%1");
+
+    QVector<int> matchGroupList(cipherword.size());
+    matchGroupList.fill(0);
+    int unknownMatchIndex=0;
+    int unknownGroupIndex=0;
+    int unknownMatchCount(std::count_if(cipherword.constBegin(), cipherword.constEnd(), [&](const QString& symbol)
+        {
+            bool match=find_cipher_by_untranslated_symbol(symbol)->is_translated();
+            qDebug() << __PRETTY_FUNCTION__ << ":" << symbol << (match ? "is" : "is not") << "translated";
+            if(not match)
+            {
+                int first_index_of_untranslated_symbol=cipherword.indexOf(symbol);
+                qDebug() << __PRETTY_FUNCTION__ << ": first symbol index=" << first_index_of_untranslated_symbol << "Match index=" << unknownMatchIndex;
+                if(first_index_of_untranslated_symbol == unknownMatchIndex)
+                {
+                    //newly identified group
+                    ++unknownGroupIndex;
+                    qDebug() << __PRETTY_FUNCTION__ << ": new group" << unknownGroupIndex;
+                    matchGroupList[unknownMatchIndex]=unknownGroupIndex;
+                }
+                else
+                {
+                    //previously identified group
+                    qDebug() << __PRETTY_FUNCTION__ << ": known group" << matchGroupList[first_index_of_untranslated_symbol];
+                    matchGroupList[unknownMatchIndex]=matchGroupList[first_index_of_untranslated_symbol];
+                }
+                ++unknownMatchIndex;
+            }
+            return not match;
+        }));
+    qDebug() << __PRETTY_FUNCTION__ << ": Match Count=" << unknownMatchCount << "Group Count=" << unknownGroupIndex;
+
+    QVector<int> lookAheadList(cipherword.size());
+    lookAheadList.fill(0);
+
+    QString regex;
+    int word_index=0;
+    std::for_each(cipherword.constBegin(), cipherword.constEnd(), [&](const QString& symbol)
+    {
+        QString symbolRegex;
+        const cipherobj* cobj=find_cipher_by_untranslated_symbol(symbol);
+
+        //Use regex negative lookahead assertion to make sure unknown symbols don't have same match as other unknown symbols (if using single substitution cipher).
+        //e.g.([A-Z])(?!(?>\1|\2|\3|\4))...
+        QString matchGroupLookaheadString;
+        for(int group=matchGroupList[word_index]+1;group <= unknownMatchCount;++group)
+        {
+            matchGroupLookaheadString.append(matchGroupReference.arg(group)).append("|");
+        }
+        matchGroupLookaheadString.remove(matchGroupLookaheadString.lastIndexOf("|"),1);
+        QString negativeLookAhead=QString("(?!%1)").arg(atomicGroup.arg(matchGroupLookaheadString));
+
+        if(cobj->is_translated())
+        {
+            lookAheadList[word_index]=*std::max(lookAheadList.constBegin(), lookAheadList.constEnd())+1;
+            symbolRegex.append(knownSymbolMatchGroup.arg(cobj->get_translated_symbol()));
+            qDebug() << __PRETTY_FUNCTION__ << ": " << "Adding [" << cobj->get_translated_symbol() << "]";
+            qDebug() << __PRETTY_FUNCTION__ << ": " << symbolRegex;
+        }
+        else
+        {
+            symbolRegex.append(unknownSymbolMatchGroup);
+            QString untranslated_symbol=cobj->get_untranslated_symbol();
+            bool is_repeated=(cipherword.count(untranslated_symbol) > 1);
+            if(is_repeated)
+            {
+                int first_index_of_untranslated_symbol=cipherword.indexOf(untranslated_symbol);
+                if(first_index_of_untranslated_symbol not_eq word_index)
+                {
+                    symbolRegex.prepend(positiveLookAround.arg(matchGroupReference.arg(matchGroupList[first_index_of_untranslated_symbol])));
+
+                    qDebug() << __PRETTY_FUNCTION__ << ": Repeated Translated Symbol first instance [" << untranslated_symbol << "]";
+                    qDebug() << __PRETTY_FUNCTION__ << ": " << symbolRegex;
+                }
+                if(first_index_of_untranslated_symbol == word_index)
+                {
+                    int matchGroupRef=*std::max(lookAheadList.constBegin(), lookAheadList.constEnd())+1;
+                    lookAheadList[word_index]=matchGroupRef;
+                    if(word_index not_eq cipherword.size())
+                    {
+                        symbolRegex.append(negativeLookAhead);
+                    }
+                    qDebug() << __PRETTY_FUNCTION__ << ": Repeated Translated Symbol [" << untranslated_symbol << "]";
+                    qDebug() << __PRETTY_FUNCTION__ << ": " << symbolRegex;
+                }
+            }
+            else
+            {
+                if(word_index not_eq cipherword.size())
+                {
+                    symbolRegex.append(negativeLookAhead);
+                }
+                qDebug() << __PRETTY_FUNCTION__ << ": Unrepeated Translated Symbol [" << untranslated_symbol << "]";
+                qDebug() << __PRETTY_FUNCTION__ << ": " << symbolRegex;
+            }
+        }
+        regex.append(symbolRegex);
+        qDebug() << __PRETTY_FUNCTION__ << ": regex=" << regex.toLatin1().constData();
+        ++word_index;
+    });
+
+    return regex.toLatin1().constData();
+}
+
 QString cipher::generate_regex_search_string_from_pattern(const QString& pattern)
 {
     //unknown letters should be matched as ".".
@@ -381,14 +481,13 @@ QString cipher::generate_regex_search_string_from_pattern(const QString& pattern
 
     //if "b" and "n" are known with unknown "a" repeating.
     //user filter  = "b1n1n1"
-    //regex filter = "b12121"
+    //regex filter = "b([a-z])n\1n\1"
 
     //if "b" and "n" are known with unknown "a" repeating.
     //"^b(.)n\1n\1$"
     //"^b(.)(.)\1\2\1$"
 
     QStringList repeatedSymbolsFilter(QString("123456789").split("", QString::SkipEmptyParts));
-    QString unknownSymbolMatcher("(.)");
 
     int index = 0;
     QString rePattern("^");
@@ -409,7 +508,7 @@ QString cipher::generate_regex_search_string_from_pattern(const QString& pattern
         {
             if(index == pattern.indexOf(symbol))
             {
-                rePattern.append(unknownSymbolMatcher);
+                rePattern.append(generate_regex_symbolic_filter());
             }
             else
             {
@@ -701,4 +800,20 @@ void cipher::update_recent_files()
     QAction *newAction=new QAction("Other ...");
     connect(newAction, &QAction::triggered, this, [&](bool) { actionOther_triggered(false);});
     ui->menuOpen->addAction(newAction);
+}
+
+void cipher::on_PolySymbolic_stateChanged(int)
+{
+    bool checked=(Qt::CheckState::Checked==ui->PolySymbolic->checkState());
+    qDebug() << "User selection changed PolySymbolic to " << (checked ? "True" : "False");
+    PolySymbolicSearch=checked;
+}
+
+void cipher::on_ResetCipherButton_clicked()
+{
+    qDebug() << "User pushed Reset button.  Clearing solution";
+    std::for_each(TheSolution.begin(), TheSolution.end(), [&](cipherobj* cobj)
+    {
+        cobj->clear_translation();
+    });
 }

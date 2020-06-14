@@ -1,5 +1,4 @@
-#ifndef CIPHERTEXTEDIT_H
-#define CIPHERTEXTEDIT_H
+#pragma once
 
 #include <QTextEdit>
 
@@ -15,5 +14,3 @@ protected:
 signals:
     void ShowContextMenuForWord(const QString& word);
 };
-
-#endif // CIPHERTEXTEDIT_H
