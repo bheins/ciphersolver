@@ -37,6 +37,7 @@ QString CipherWordLineEdit::text() const
 
 void CipherWordLineEdit::setText(const QString & newText)
 {
+    qDebug() << reinterpret_cast<uintptr_t>(this);
     Text=newText;
     QLineEdit::setText(newText);
 }
