@@ -37,6 +37,7 @@ QString CipherWordLineEdit::text() const
 
 void CipherWordLineEdit::setText(const QString & newText)
 {
+    qDebug() << reinterpret_cast<uintptr_t>(this);
     Text=newText;
     QLineEdit::setText(newText);
 }
@@ -54,14 +55,21 @@ void CipherWordLineEdit::dragEnterEvent(QDragEnterEvent *e)
 
 void CipherWordLineEdit::dropEvent(QDropEvent *e)
 {
-    e->accept();
-    qDebug() << objectName() << ": " << __FUNCTION__  << ": " << e->mimeData()->text();
-    QString newText(e->mimeData()->data("application/x-qabstractitemmodeldatalist"));
-    if(newText.size() == text().size())
+    if(e->source() not_eq this)
     {
-        setText(newText);
+        e->accept();
+        qDebug() << objectName() << ": " << __FUNCTION__  << ": " << sender()->objectName();
+        QString newText(e->mimeData()->data("application/x-qabstractitemmodeldatalist"));
+        if(newText.size() == text().size())
+        {
+            setText(newText);
+        }
+        QLineEdit::dropEvent(e);
     }
-    QLineEdit::dropEvent(e);
+    else
+    {
+        e->ignore();
+    }
 }
 
 void CipherWordLineEdit::translation_updated()

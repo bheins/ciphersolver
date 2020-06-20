@@ -1,73 +1,10 @@
-QT       += core gui
+include(common.pri)
+TEMPLATE = subdirs
 
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
-CONFIG += c++11
-CONFIG += file_copies
-CONFIG += embed_manifest_exe
-#The following does not work when compiling with MinGW
-#QMAKE_LFLAGS += /MANIFESTUAC:\"level=\'requireAdministrator\' uiAccess=\'false\'\"
+SUBDIRS += src app test
+app.depends = src
+test.depends = src
 
-CONFIG(debug, debug|release) {
-    DESTDIR = debug
-} else {
-    DESTDIR = release
-}
+CONFIG += ordered
 
-DEPLOY_COMMAND = windeployqt
-DEPLOY_TARGET = $$shell_quote($$shell_path($$DESTDIR\\$${TARGET}.exe))
-DEPLOY_OPTIONS += "--$$DESTDIR"
-
-# The following define makes your compiler emit warnings if you use
-# any Qt feature that has been marked deprecated (the exact warnings
-# depend on your compiler). Please consult the documentation of the
-# deprecated API in order to know how to port your code away from it.
-DEFINES += QT_DEPRECATED_WARNINGS
-
-# You can also make your code fail to compile if it uses deprecated APIs.
-# In order to do so, uncomment the following line.
-# You can also select to disable deprecated APIs only up to a certain version of Qt.
-#DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
-
-SOURCES += \
-    cipherobject.cpp \
-    cipherobjectmenu.cpp \
-    ciphertextedit.cpp \
-    cipherwordlineedit.cpp \
-    main.cpp \
-    cipher.cpp
-
-HEADERS += \
-    cipher.h \
-    cipherobject.h \
-    cipherobjectmenu.h \
-    ciphertextedit.h \
-    cipherwordlineedit.h
-
-FORMS += \
-    cipher.ui
-
-COPIES += database manifest
-
-# Default rules for deployment.
-qnx: target.path = /tmp/$${TARGET}/bin
-else: unix:!android: target.path = /opt/$${TARGET}/bin
-!isEmpty(target.path): INSTALLS += target
-
-database.files = $$files(database/*.txt)
-database.path = $$OUT_PWD/$$DESTDIR/database
-
-manifest.files = $$files(cipher.manifest)
-manifest.path = $$OUT_PWD/$$DESTDIR
-
-win32 {
-    WINSDK_DIR = C:/Program Files (x86)/Windows Kits/10/
-    WIN_PWD = $$replace(PWD, /, \\)
-    OUT_PWD_WIN = $$replace(OUT_PWD, /, \\)
-
-    QMAKE_POST_LINK = $$quote($${DEPLOY_COMMAND} $${DEPLOY_TARGET})
-#    QMAKE_POST_LINK += $$escape_expand(\n\t)
-#    QMAKE_POST_LINK += "$$quote(\"$$WINSDK_DIR\bin\10.0.19041.0\x64\mt.exe\" -manifest \"$$quote($$WIN_PWD\\$$basename(TARGET).manifest)\" -outputresource:$$quote(\"$$OUT_PWD_WIN\\$$DESTDIR\\$${TARGET}.exe\";1))"
-}
-
-DISTFILES += \
-    cipher.manifest
+OTHER_FILES += database/*

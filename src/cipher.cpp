@@ -54,7 +54,6 @@ cipher::cipher(QWidget *parent)
     ui->LoadLast->setChecked(loadLast);
     if(loadLast)
     {
-        qDebug() << "Opening last saved file" << Settings.value("Save/LastSaveFile").toString();
         open_cipher(Settings.value("Save/LastSaveFile").toString());
     }
     bool searchFilterLimited(Settings.value("SearchFilterLimited").toBool());
@@ -82,7 +81,6 @@ void cipher::load_dictionary()
                 Dictionary.append(line);
             }
         }
-        qDebug() << QString("Finished loading dictionary of %1 words.").arg(Dictionary.size());
     }
     else
     {
@@ -102,7 +100,6 @@ void cipher::load_dictionary()
                 Dictionary.append(line);
             }
         }
-        qDebug() << QString("Finished loading dictionary of %1 words.").arg(Dictionary.size());
     }
     else
     {
@@ -198,19 +195,24 @@ void cipher::show_custom_word_menu_selection(QPoint pos)
     filteredDatabaseList.removeDuplicates();
     qDebug() << __PRETTY_FUNCTION__ << ": found" << filteredDatabaseList.size() << "words";
     QPoint globalPos = lineEdit->mapToGlobal(pos);
-    cipherobjectmenu solutionMenu;
-    solutionMenu.move(globalPos);
-    for(auto action : filteredDatabaseList)
+    cipherobjectmenu* solutionMenu(new cipherobjectmenu(this));
+    qDebug() << reinterpret_cast<uintptr_t>(lineEdit);
+    for(auto actionString : filteredDatabaseList)
     {
-        solutionMenu.addAction(action);
+        QAction* newAction = new QAction(actionString);
+        connect(newAction, &QAction::triggered, this, [=](bool)
+        {
+            QAction* selectedAction = qobject_cast<QAction*>(sender());
+            QString actionText = selectedAction->text();
+            qDebug() << reinterpret_cast<uintptr_t>(lineEdit);
+            lineEdit->setText(actionText);
+            delete solutionMenu;
+        });
+        solutionMenu->addAction(newAction);
     }
-    solutionMenu.show();
-
-    QAction* selectedItem = solutionMenu.exec(globalPos);
-    if(nullptr not_eq selectedItem)
-    {
-        lineEdit->setText(selectedItem->text());
-    }
+//    solutionMenu->move(globalPos);
+    solutionMenu->popup(globalPos);
+    solutionMenu->show();
 }
 
 void cipher::build_interactive_solver()
@@ -243,7 +245,10 @@ void cipher::build_interactive_solver()
         delete solver;
     }
 
-    solverVerticalLayout->addWidget(cipher);
+    if(nullptr not_eq cipher)
+    {
+       solverVerticalLayout->addWidget(cipher);
+    }
     solver = new QWidget(ui->SolverMain);
     solver->setObjectName("Solver");
     solver->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
@@ -366,6 +371,8 @@ void cipher::solver_textChanged(const QString& text)
 
 QString cipher::generate_regex_match_restrictions(const QVector<QString>& cipherword)
 {
+    //([abcdefghjklmopqrstuvwxyz])(?!(\1))([abcdefghjklmopqrstuvwxyz])(?!(\1|\2))([abcdefghjklmopqrstuvwxyz])(?!(\1|\2|\3))([abcdefghjklmopqrstuvwxyz])(?=\1)([abcdefghjklmopqrstuvwxyz])
+
     QString positiveLookAround("(?=%1)");
     QString atomicGroup("(?>%1)"); //do not allow backup
     QString knownSymbolMatchGroup("%1");

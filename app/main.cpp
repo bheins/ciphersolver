@@ -1,4 +1,4 @@
-#include "cipher.h"
+#include <cipher.h>
 
 #include <QApplication>
 

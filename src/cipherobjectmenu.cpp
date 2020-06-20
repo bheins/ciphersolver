@@ -4,4 +4,5 @@
 cipherobjectmenu::cipherobjectmenu(QWidget *parent)
     : QMenu(parent)
 {
+    setObjectName("CipherWordMenu");
 }
