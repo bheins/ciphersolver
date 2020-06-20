@@ -32,5 +32,6 @@ win32 {
 #    QMAKE_POST_LINK += $$escape_expand(\n\t)
 #    QMAKE_POST_LINK += "$$quote(\"$$WINSDK_DIR\bin\10.0.19041.0\x64\mt.exe\" -manifest \"$$quote($$WIN_PWD\\$$basename(TARGET).manifest)\" -outputresource:$$quote(\"$$OUT_PWD_WIN\\$$DESTDIR\\$${TARGET}.exe\";1))"
 }
-DISTFILES += cipher.manifest
+DISTFILES += cipher.manifest \
+    copyright.txt
 LIBS += -lcipher -L../src/$$DESTDIR

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cipherobjectmenu.h"
+#include "databasemanager.h"
 #include <QMainWindow>
 #include <QHash>
 #include <QListWidgetItem>
@@ -10,8 +11,6 @@
 QT_BEGIN_NAMESPACE
 namespace Ui { class CipherUI; }
 QT_END_NAMESPACE
-
-//typedef QVector<QVector<QVector<QString> > > Cipher;
 
 class cipherobj;
 class cipher : public QMainWindow
@@ -47,7 +46,6 @@ private:
     bool save_cipher(const QString &filename);
     void save_cipher_helper(bool allowDiscard);
     void open_cipher(const QString &filename);
-    void remove_unused_symbols();
     cipherobj *find_cipher_by_untranslated_symbol(const QString &symbol);
     cipherobj *find_cipher_by_translated_symbol(const QString& symbol);
     QVector<int> find_all_matching_untranslated_symbols(const int line, const int word, const int symbol_index);
@@ -57,7 +55,6 @@ private:
     void reset();
     void update_recent_files();
 
-    QStringList Dictionary;
     QString CurrentSymbol;
     QString CurrentWord;
     QVector<QVector<QVector<QString> > > TheCipher;
@@ -69,4 +66,5 @@ private:
     bool SolverChangeNotSaved;
     bool PolySymbolicSearch;
     bool SearchFilterLimited;
+    DatabaseManager DbMgr;
 };
