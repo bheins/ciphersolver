@@ -1,7 +1,6 @@
 ﻿#include "cipher.h"
 #include "ui_cipher.h"
 #include "cipherwordlineedit.h"
-#include <QDir>
 #include <QTextDocument>
 #include <QRegExp>
 #include <QRegularExpression>
@@ -16,7 +15,6 @@
 #include <QFormLayout>
 #include <QLineEdit>
 #include <QGroupBox>
-#include <QTextStream>
 #include <QString>
 #include <QListWidget>
 #include <QObject>
@@ -45,10 +43,11 @@ cipher::cipher(QWidget *parent)
     , SolverChangeNotSaved(false)
     , PolySymbolicSearch(false)
     , SearchFilterLimited(false)
+    , DbMgr()
 {
     ui->setupUi(this);
     ui->OptionsLayout->setAlignment(Qt::AlignTop);
-    load_dictionary();
+
     update_recent_files();
     bool loadLast(Settings.value("LoadLast").toBool());
     ui->LoadLast->setChecked(loadLast);
@@ -65,58 +64,11 @@ cipher::~cipher()
     qDeleteAll(TheSolution);
 }
 
-void cipher::load_dictionary()
-{
-    QDir path(QCoreApplication::applicationDirPath().append("\\database"));
-    QFile textFile(path.path().append("\\wordlist.txt"));
-    QTextStream wordsTextStream(&textFile);
-
-    if(textFile.exists() and textFile.open(QIODevice::ReadOnly | QIODevice::Text))
-    {
-        while(not wordsTextStream.atEnd())
-        {
-            QString line = wordsTextStream.readLine();
-            if(not line.isNull())
-            {
-                Dictionary.append(line);
-            }
-        }
-    }
-    else
-    {
-        qDebug() << QString("Error opening %1").arg(textFile.fileName());
-    }
-
-    QFile namesFile(path.path().append("\\Given-Names.txt"));
-    QTextStream namesTextStream(&namesFile);
-
-    if(namesFile.exists() and namesFile.open(QIODevice::ReadOnly | QIODevice::Text))
-    {
-        while(not namesTextStream.atEnd())
-        {
-            QString line = namesTextStream.readLine();
-            if(not line.isNull())
-            {
-                Dictionary.append(line);
-            }
-        }
-    }
-    else
-    {
-        qDebug() << QString("Error opening %1").arg(namesFile.fileName());
-    }
-}
-
 void cipher::on_Cipher_textChanged()
 {
     CipherChangeNotSaved = true;
     update_cipher();
-//    remove_unused_symbols();
     build_interactive_solver();
-}
-
-void cipher::remove_unused_symbols()
-{
 }
 
 void cipher::update_cipher()
@@ -191,8 +143,7 @@ void cipher::show_custom_word_menu_selection(QPoint pos)
     qDebug() << __PRETTY_FUNCTION__ << ": searching for matching regex on database with " << rePattern.toLatin1().constData();
 
     QRegularExpression searchFilter(rePattern, QRegularExpression::CaseInsensitiveOption);
-    QStringList filteredDatabaseList(Dictionary.filter(searchFilter));
-    filteredDatabaseList.removeDuplicates();
+    QStringList filteredDatabaseList(DbMgr.filter(searchFilter));
     qDebug() << __PRETTY_FUNCTION__ << ": found" << filteredDatabaseList.size() << "words";
     QPoint globalPos = lineEdit->mapToGlobal(pos);
     cipherobjectmenu* solutionMenu(new cipherobjectmenu(this));
@@ -210,7 +161,6 @@ void cipher::show_custom_word_menu_selection(QPoint pos)
         });
         solutionMenu->addAction(newAction);
     }
-//    solutionMenu->move(globalPos);
     solutionMenu->popup(globalPos);
     solutionMenu->show();
 }
@@ -509,8 +459,7 @@ void cipher::on_wordFilter_returnPressed()
     QString rePattern(generate_regex_search_string_from_pattern(text));
     QRegExp searchFilter(rePattern, Qt::CaseInsensitive);
 
-    QStringList filteredDatabaseList(Dictionary.filter(searchFilter));
-    (void)filteredDatabaseList.removeDuplicates();
+    QStringList filteredDatabaseList(DbMgr.filter(searchFilter));
     ui->wordSelection->clear();
     qDebug() << "wordFilter=" << rePattern << ".  FilteredDatabase resulted in " << filteredDatabaseList.size() << " items.";
     ui->wordSelection->insertItems(0, filteredDatabaseList);
@@ -788,7 +737,8 @@ void cipher::on_PolySymbolic_stateChanged(int)
 {
     bool checked=(Qt::CheckState::Checked==ui->PolySymbolic->checkState());
     qDebug() << "User selection changed PolySymbolic to " << (checked ? "True" : "False");
-    PolySymbolicSearch=checked;
+    PolySymbolicSearch = checked;
+    DbMgr.set_single_substitution(not checked);
 }
 
 void cipher::on_SearchboxFiltering_stateChanged(int)

@@ -12,14 +12,16 @@ SOURCES += \
     cipherobjectmenu.cpp \
     ciphertextedit.cpp \
     cipherwordlineedit.cpp \
-    cipher.cpp
+    cipher.cpp \
+    databasemanager.cpp
 
 HEADERS += \
     cipher.h \
     cipherobject.h \
     cipherobjectmenu.h \
     ciphertextedit.h \
-    cipherwordlineedit.h
+    cipherwordlineedit.h \
+    databasemanager.h
 
 FORMS += \
     cipher.ui
