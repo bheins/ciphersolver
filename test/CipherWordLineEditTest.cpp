@@ -125,8 +125,9 @@ TEST_F(CipherWordLineEditTest, DroppedWordFromWordListUpdatesTextInTextBox)
     QListWidget* wordList(sut.findChild<QListWidget*>("wordSelection"));
     ASSERT_THAT(wordList, NotNull());
 
-    wordFilter->setText("1...1");
-    QTest::keyPress(wordFilter, Qt::EnterKeyReturn);
+    QString userText("1...1");
+    wordFilter->setText(userText);
+    QMetaObject::invokeMethod(wordFilter, "returnPressed");
     ASSERT_THAT(wordList->count(), Gt(1));
 
     wordList->setCurrentRow(0);

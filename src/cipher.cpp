@@ -163,19 +163,19 @@ void cipher::show_custom_word_menu_selection(QPoint pos)
     for(const auto &actionString : filteredDatabaseList)
     {
         QAction* newAction = new QAction(actionString);
-        Q_ASSERT(connect(newAction, &QAction::triggered, this, [=](bool)
+        connect(newAction, &QAction::triggered, this, [=](bool)
         {
             QAction* selectedAction = qobject_cast<QAction*>(sender());
             QString actionText = selectedAction->text();
             lineEdit->setText(actionText);
             solutionMenu->deleteLater();
-        }));
+        });
         solutionMenu->get_word_list_menu()->addAction(newAction);
     }
-    Q_ASSERT(connect(solutionMenu->get_clear_action(), &QAction::triggered, this, [=]()
+    connect(solutionMenu->get_clear_action(), &QAction::triggered, this, [=]()
     {
         lineEdit->clear();
-    }));
+    });
     solutionMenu->popup(lineEdit->mapToGlobal(pos));
 }
 
@@ -459,6 +459,9 @@ QString cipher::generate_regex_search_string_from_pattern(const QString& pattern
     QString lastSymbol;
     for(const auto& symbol : pattern.split("", QString::SkipEmptyParts))
     {
+        int first_index_of_symbol=pattern.indexOf(symbol);
+        bool positiveLookahead=(pattern.count(symbol) > 1) and (first_index_of_symbol not_eq index);
+        Q_UNUSED(positiveLookahead)
         if(not repeatedSymbolsFilter.contains(symbol))
         {
             rePattern.append(symbol);
