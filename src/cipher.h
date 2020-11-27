@@ -67,4 +67,5 @@ private:
     bool PolySymbolicSearch;
     bool SearchFilterLimited;
     DatabaseManager DbMgr;
+    bool CipherLoading;
 };

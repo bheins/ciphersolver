@@ -6,5 +6,6 @@ app.depends = src
 test.depends = src
 
 CONFIG += ordered
+CONFIG += debug
 
 OTHER_FILES += database/*
