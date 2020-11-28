@@ -30,7 +30,6 @@ jobs:
       run: |
         mingw32-make
 
-    - name: Upload a Build Artifact
     - uses: actions/upload-artifact@v2
       id: upload_artifact
       with:
@@ -44,8 +43,8 @@ jobs:
 
     steps:
     - name: Create a Release
+      id: create_release
       uses: actions/create-release@v1
-
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -54,7 +53,7 @@ jobs:
         draft: false
         prerelease: false
 
-    - name: Upload a Build Artifact
+    - name: Store Release url
       run: |
         echo "${{ steps.create_release.outputs.upload_url }}" > ./upload_url
     - uses: actions/upload-artifact@v2
@@ -98,6 +97,7 @@ jobs:
         upload_url=`cat ./upload_url`
         echo ::set-output name=upload_url::$upload_url
     - name: Upload a Release Asset
+      id: upload_to_release
       uses: actions/upload-release-asset@v1.0.2
 
       env:
