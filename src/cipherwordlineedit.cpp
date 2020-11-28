@@ -44,8 +44,13 @@ void CipherWordLineEdit::setText(const QString & newText)
 
 void CipherWordLineEdit::clear()
 {
-    Text.clear();
-    QLineEdit::clear();
+    qDebug() << __PRETTY_FUNCTION__;
+    for(const auto& cobj : Word)
+    {
+        cobj->clear_translation();
+    }
+//    Text.clear();
+//    QLineEdit::clear();
 }
 
 void CipherWordLineEdit::dragEnterEvent(QDragEnterEvent *e)

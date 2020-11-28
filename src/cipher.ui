@@ -100,6 +100,16 @@
         <enum>QLayout::SetFixedSize</enum>
        </property>
        <item>
+        <widget class="QLabel" name="label">
+         <property name="text">
+          <string>Enter Cipher</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QPlainTextEdit" name="Cipher">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
@@ -276,10 +286,18 @@ Examples:
      <string>Manual</string>
     </property>
    </widget>
+   <widget class="QMenu" name="menuEdit">
+    <property name="title">
+     <string>Edit</string>
+    </property>
+    <addaction name="actionUndo"/>
+    <addaction name="actionRedo"/>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuConnect"/>
    <addaction name="menuScan"/>
    <addaction name="menuManual"/>
+   <addaction name="menuEdit"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionClose">
@@ -308,7 +326,7 @@ Examples:
     <string>Save As...</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+Z</string>
+    <string>Ctrl+A</string>
    </property>
   </action>
   <action name="actionLast">
@@ -319,6 +337,22 @@ Examples:
   <action name="actionOther">
    <property name="text">
     <string>Other</string>
+   </property>
+  </action>
+  <action name="actionUndo">
+   <property name="text">
+    <string>Undo</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Z</string>
+   </property>
+  </action>
+  <action name="actionRedo">
+   <property name="text">
+    <string>Redo</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Y</string>
    </property>
   </action>
  </widget>

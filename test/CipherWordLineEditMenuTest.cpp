@@ -58,7 +58,7 @@ TEST_F(CipherWordLineEditMenuTest, ContextMenuForEditBoxShowsWordsMatchingPatter
     QMetaObject::invokeMethod(editBox, "customContextMenuRequested", Q_ARG(QPoint, editBox->pos()));
     cipherobjectmenu* cipherMenu = sut.findChild<cipherobjectmenu*>();
     ASSERT_THAT(cipherMenu, NotNull());
-    const QList<QAction*> words = cipherMenu->actions();
+    const QList<QAction*> words = cipherMenu->get_word_list_menu()->actions();
     ASSERT_EQ(2, words.count());
     EXPECT_STREQ("a", words.at(0)->text().toLatin1().constData());
     EXPECT_STREQ("i", words.at(1)->text().toLatin1().constData());
@@ -77,7 +77,7 @@ TEST_F(CipherWordLineEditMenuTest, CipherTextUpdatedWithSolutionWhenWordSelected
     QMetaObject::invokeMethod(editBox, "customContextMenuRequested", Q_ARG(QPoint, editBox->pos()));
     cipherobjectmenu* cipherMenu = sut.findChild<cipherobjectmenu*>();
     ASSERT_THAT(cipherMenu, NotNull());
-    const QList<QAction*> words = cipherMenu->actions();
+    const QList<QAction*> words = cipherMenu->get_word_list_menu()->actions();
     ASSERT_EQ(2, words.count());
     EXPECT_STREQ("a", words.at(0)->text().toLatin1().constData());
     EXPECT_STREQ("i", words.at(1)->text().toLatin1().constData());

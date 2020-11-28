@@ -44,6 +44,7 @@ cipher::cipher(QWidget *parent)
     , PolySymbolicSearch(false)
     , SearchFilterLimited(false)
     , DbMgr()
+    , CipherLoading(false)
 {
     ui->setupUi(this);
     ui->OptionsLayout->setAlignment(Qt::AlignTop);
@@ -51,9 +52,18 @@ cipher::cipher(QWidget *parent)
     update_recent_files();
     bool loadLast(Settings.value("LoadLast").toBool());
     ui->LoadLast->setChecked(loadLast);
+    QString lastSavedFile=Settings.value("Save/LastSaveFile").toString();
+    qDebug() << QString("Opening last saved file %1").arg(lastSavedFile);
     if(loadLast)
     {
-        open_cipher(Settings.value("Save/LastSaveFile").toString());
+        if(not lastSavedFile.isEmpty())
+        {
+            open_cipher(lastSavedFile);
+        }
+        else
+        {
+            qDebug() << QString("No last save exists in %1").arg(Settings.fileName());
+        }
     }
     bool searchFilterLimited(Settings.value("SearchFilterLimited").toBool());
     ui->SearchboxFiltering->setChecked(searchFilterLimited);
@@ -66,7 +76,10 @@ cipher::~cipher()
 
 void cipher::on_Cipher_textChanged()
 {
-    CipherChangeNotSaved = true;
+    if(not CipherLoading)
+    {
+        CipherChangeNotSaved = true;
+    }
     update_cipher();
     build_interactive_solver();
 }
@@ -145,28 +158,30 @@ void cipher::show_custom_word_menu_selection(QPoint pos)
     QRegularExpression searchFilter(rePattern, QRegularExpression::CaseInsensitiveOption);
     QStringList filteredDatabaseList(DbMgr.filter(searchFilter));
     qDebug() << __PRETTY_FUNCTION__ << ": found" << filteredDatabaseList.size() << "words";
-    QPoint globalPos = lineEdit->mapToGlobal(pos);
+
     cipherobjectmenu* solutionMenu(new cipherobjectmenu(this));
-    qDebug() << reinterpret_cast<uintptr_t>(lineEdit);
-    for(auto actionString : filteredDatabaseList)
+    for(const auto &actionString : filteredDatabaseList)
     {
         QAction* newAction = new QAction(actionString);
         connect(newAction, &QAction::triggered, this, [=](bool)
         {
             QAction* selectedAction = qobject_cast<QAction*>(sender());
             QString actionText = selectedAction->text();
-            qDebug() << reinterpret_cast<uintptr_t>(lineEdit);
             lineEdit->setText(actionText);
-            delete solutionMenu;
+            solutionMenu->deleteLater();
         });
-        solutionMenu->addAction(newAction);
+        solutionMenu->get_word_list_menu()->addAction(newAction);
     }
-    solutionMenu->popup(globalPos);
-    solutionMenu->show();
+    connect(solutionMenu->get_clear_action(), &QAction::triggered, this, [=]()
+    {
+        lineEdit->clear();
+    });
+    solutionMenu->popup(lineEdit->mapToGlobal(pos));
 }
 
 void cipher::build_interactive_solver()
 {
+    qDebug() << __PRETTY_FUNCTION__;
     QVBoxLayout* solverVerticalLayout = ui->VerticalLayout;
     QWidget* solver = ui->SolverMain->findChild<QWidget*>("Solver");
 
@@ -280,7 +295,10 @@ void cipher::build_interactive_solver()
 
 void cipher::solver_textChanged(const QString& text)
 {
-    SolverChangeNotSaved = true;
+    if(not CipherLoading)
+    {
+        SolverChangeNotSaved = true;
+    }
     QString lineEditor(sender()->objectName());
     QRegularExpression re("^solver_(?P<Line>\\d+)_(?P<Word>\\d+)$");
     QRegularExpressionMatch cipherMatcher = re.match(lineEditor);
@@ -321,9 +339,12 @@ void cipher::solver_textChanged(const QString& text)
 
 QString cipher::generate_regex_match_restrictions(const QVector<QString>& cipherword)
 {
-    //([abcdefghjklmopqrstuvwxyz])(?!(\1))([abcdefghjklmopqrstuvwxyz])(?!(\1|\2))([abcdefghjklmopqrstuvwxyz])(?!(\1|\2|\3))([abcdefghjklmopqrstuvwxyz])(?=\1)([abcdefghjklmopqrstuvwxyz])
-
-    QString positiveLookAround("(?=%1)");
+    // if not poly symbolic:
+    // match comic but not civic
+    // ^([bcdefghijklmnopqrstuvwxyz])([bcdefghijklmnopqrstuvwxyz])(?!(?>\1))([bcdefghijklmnopqrstuvwxyz])(?!(?>\1|\2))([bcdefghijklmnopqrstuvwxyz])(?!(?>\2|\3))(?=\1)([bcdefghijklmnopqrstuvwxyz])$
+    // back references ensure uniqueness of different symbols.
+    // Mark identical symbols and ensure they are identical
+    QString positiveLookAheadAssertion("(?=%1)");
     QString atomicGroup("(?>%1)"); //do not allow backup
     QString knownSymbolMatchGroup("%1");
     const QString unknownSymbolMatchGroup=generate_regex_symbolic_filter(not PolySymbolicSearch);
@@ -333,13 +354,14 @@ QString cipher::generate_regex_match_restrictions(const QVector<QString>& cipher
     matchGroupList.fill(0);
     int unknownMatchIndex=0;
     int unknownGroupIndex=0;
+    int symbol_index=0;
     int unknownMatchCount(std::count_if(cipherword.constBegin(), cipherword.constEnd(), [&](const QString& symbol)
         {
             bool match=find_cipher_by_untranslated_symbol(symbol)->is_translated();
             if(not match)
             {
                 int first_index_of_untranslated_symbol=cipherword.indexOf(symbol);
-                if(first_index_of_untranslated_symbol == unknownMatchIndex)
+                if(first_index_of_untranslated_symbol == symbol_index)
                 {
                     ++unknownGroupIndex;
                     matchGroupList[unknownMatchIndex]=unknownGroupIndex;
@@ -350,8 +372,10 @@ QString cipher::generate_regex_match_restrictions(const QVector<QString>& cipher
                 }
                 ++unknownMatchIndex;
             }
+            ++symbol_index;
             return not match;
         }));
+    Q_UNUSED(unknownMatchCount)
 
     QVector<int> lookAheadList(cipherword.size());
     lookAheadList.fill(0);
@@ -362,16 +386,14 @@ QString cipher::generate_regex_match_restrictions(const QVector<QString>& cipher
     {
         QString symbolRegex;
         const cipherobj* cobj=find_cipher_by_untranslated_symbol(symbol);
-
+        const QString untranslated_symbol=cobj->get_untranslated_symbol();
+        int first_index_of_untranslated_symbol=cipherword.indexOf(untranslated_symbol);
+        bool positiveLookahead=(cipherword.count(untranslated_symbol) > 1) and (first_index_of_untranslated_symbol not_eq word_index);
+        qDebug() << QString("Positive lookahead=%1").arg(positiveLookahead);
+        QString negativeLookAheadAssertion;
         //Use regex negative lookahead assertion to make sure unknown symbols don't have same match as other unknown symbols (if using single substitution cipher).
         //e.g.([A-Z])(?!(?>\1|\2|\3|\4))...
-        QString matchGroupLookaheadString;
-        for(int group=matchGroupList[word_index]+1;group <= unknownMatchCount;++group)
-        {
-            matchGroupLookaheadString.append(matchGroupReference.arg(group)).append("|");
-        }
-        matchGroupLookaheadString.remove(matchGroupLookaheadString.lastIndexOf("|"),1);
-        QString negativeLookAhead=QString("(?!%1)").arg(atomicGroup.arg(matchGroupLookaheadString));
+
 
         if(cobj->is_translated())
         {
@@ -381,34 +403,41 @@ QString cipher::generate_regex_match_restrictions(const QVector<QString>& cipher
         else
         {
             symbolRegex.append(unknownSymbolMatchGroup);
-            QString untranslated_symbol=cobj->get_untranslated_symbol();
-            bool is_repeated=(cipherword.count(untranslated_symbol) > 1);
-            if(is_repeated)
+
+            if(positiveLookahead)
             {
-                int first_index_of_untranslated_symbol=cipherword.indexOf(untranslated_symbol);
-                if(first_index_of_untranslated_symbol not_eq word_index)
-                {
-                    symbolRegex.prepend(positiveLookAround.arg(matchGroupReference.arg(matchGroupList[first_index_of_untranslated_symbol])));
-                }
-                if(first_index_of_untranslated_symbol == word_index)
-                {
-                    int matchGroupRef=*std::max(lookAheadList.constBegin(), lookAheadList.constEnd())+1;
-                    lookAheadList[word_index]=matchGroupRef;
-                    if(word_index < unknownMatchCount-1)
-                    {
-                        symbolRegex.append(negativeLookAhead);
-                    }
-                }
+                symbolRegex.prepend(positiveLookAheadAssertion.arg(matchGroupReference.arg(matchGroupList[first_index_of_untranslated_symbol])));
             }
             else
             {
-                if(word_index < unknownMatchCount-1)
+                if(word_index > 0 and word_index < cipherword.size()-2)
                 {
-                    symbolRegex.append(negativeLookAhead);
+                    symbol_index = 0;
+                    std::for_each(matchGroupList.cbegin(), matchGroupList.cend(), [&] (const int& groupNumber)
+                    {
+                        qDebug() << QString("Symbol=%1(%2) Word=%3(%4)").arg(symbol_index).arg(groupNumber).arg(word_index).arg(matchGroupList[word_index]);
+                        if(symbol_index < word_index)
+                        {
+                            QString matchGroup=matchGroupReference.arg(groupNumber);
+                            qDebug() << QString("Adding negative lookahead for matchGroup %1 at word_index %2").arg(matchGroup).arg(word_index);
+                            negativeLookAheadAssertion.append(matchGroup).append("|");
+                        }
+                        ++symbol_index;
+                        qDebug() << QString("Negativelookahead=%1").arg(negativeLookAheadAssertion);
+                    });
+
+                    if(not negativeLookAheadAssertion.isEmpty())
+                    {
+                        negativeLookAheadAssertion.remove(negativeLookAheadAssertion.lastIndexOf("|"),1);
+                        negativeLookAheadAssertion=QString("(?!%1)").arg(atomicGroup.arg(negativeLookAheadAssertion));
+                    }
+
+                    symbolRegex.append(negativeLookAheadAssertion);
                 }
             }
         }
         regex.append(symbolRegex);
+        qDebug() << QString("regex=%1").arg(regex);
         ++word_index;
     });
 
@@ -428,8 +457,11 @@ QString cipher::generate_regex_search_string_from_pattern(const QString& pattern
     });
 
     QString lastSymbol;
-    for(const QString& symbol : pattern)
+    for(const auto& symbol : pattern.split("", QString::SkipEmptyParts))
     {
+        int first_index_of_symbol=pattern.indexOf(symbol);
+        bool positiveLookahead=(pattern.count(symbol) > 1) and (first_index_of_symbol not_eq index);
+        Q_UNUSED(positiveLookahead)
         if(not repeatedSymbolsFilter.contains(symbol))
         {
             rePattern.append(symbol);
@@ -566,6 +598,11 @@ bool cipher::save_cipher(const QString& filename)
         Settings.endGroup();
         Settings.endGroup();
         Settings.sync();
+        qDebug() << QString("File %1 saved.  Updated Recent Files in %2 as %3 @ %4.")
+                    .arg(saveFile.fileName())
+                    .arg(Settings.fileName())
+                    .arg(Settings.value("Save\\LastSaveFile").toString())
+                    .arg(Settings.value("Save\\LastSaveTime").toDateTime().toString());
         CipherChangeNotSaved = false;
         SolverChangeNotSaved = false;
         save_success=true;
@@ -635,6 +672,8 @@ void cipher::reset()
     }
     qDeleteAll(TheSolution);
     TheSolution.clear();
+    CipherChangeNotSaved = false;
+    SolverChangeNotSaved = false;
 }
 
 void cipher::on_actionClose_triggered(bool)
@@ -673,6 +712,7 @@ void cipher::on_actionExit_triggered(bool)
 
 void cipher::open_cipher(const QString& filename)
 {
+    CipherLoading = true;
     if(CipherChangeNotSaved or SolverChangeNotSaved)
     {
         QMessageBox save;
@@ -705,6 +745,8 @@ void cipher::open_cipher(const QString& filename)
     loadFile.endGroup();
 
     update_recent_files();
+
+    CipherLoading = false;
 }
 
 void cipher::update_recent_files()
