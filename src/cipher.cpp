@@ -352,6 +352,30 @@ QString cipher::generate_regex_match_restrictions(const QVector<QString>& cipher
 
     QVector<int> matchGroupList(cipherword.size());
     matchGroupList.fill(0);
+    int unknownMatchIndex=0;
+    int unknownGroupIndex=0;
+    int symbol_index=0;
+    int unknownMatchCount(std::count_if(cipherword.constBegin(), cipherword.constEnd(), [&](const QString& symbol)
+        {
+            bool match=find_cipher_by_untranslated_symbol(symbol)->is_translated();
+            if(not match)
+            {
+                int first_index_of_untranslated_symbol=cipherword.indexOf(symbol);
+                if(first_index_of_untranslated_symbol == symbol_index)
+                {
+                    ++unknownGroupIndex;
+                    matchGroupList[unknownMatchIndex]=unknownGroupIndex;
+                }
+                else
+                {
+                    matchGroupList[unknownMatchIndex]=matchGroupList[first_index_of_untranslated_symbol];
+                }
+                ++unknownMatchIndex;
+            }
+            ++symbol_index;
+            return not match;
+        }));
+    Q_UNUSED(unknownMatchCount)
 
     QVector<int> lookAheadList(cipherword.size());
     lookAheadList.fill(0);
@@ -369,7 +393,7 @@ QString cipher::generate_regex_match_restrictions(const QVector<QString>& cipher
         QString negativeLookAheadAssertion;
         //Use regex negative lookahead assertion to make sure unknown symbols don't have same match as other unknown symbols (if using single substitution cipher).
         //e.g.([A-Z])(?!(?>\1|\2|\3|\4))...
-        int symbolIndex=0;
+
 
         if(cobj->is_translated())
         {
@@ -386,43 +410,19 @@ QString cipher::generate_regex_match_restrictions(const QVector<QString>& cipher
             }
             else
             {
-                if(word_index > 0)
+                if(word_index > 0 and word_index < cipherword.size()-2)
                 {
-                    int unknownMatchIndex=0;
-                    int unknownGroupIndex=0;
-
-                    std::all_of(cipherword.constBegin(), cipherword.constEnd(), [&](const QString& symbol)
-                    {
-                        bool match=find_cipher_by_untranslated_symbol(symbol)->is_translated();
-                        if(not match)
-                        {
-                            int first_index_of_untranslated_symbol=cipherword.indexOf(symbol);
-                            if(first_index_of_untranslated_symbol == unknownMatchIndex)
-                            {
-                                ++unknownGroupIndex;
-                                matchGroupList[unknownMatchIndex]=unknownGroupIndex;
-                                qDebug() << QString("First index of unknown symbol %1 at %2 with group index %3").arg(symbol).arg(unknownMatchIndex).arg(unknownGroupIndex);
-                            }
-                            else
-                            {
-                                matchGroupList[unknownMatchIndex]=matchGroupList[first_index_of_untranslated_symbol];
-                                qDebug() << QString("%1 index of unknown symbol %2 at %3 with group index %4").arg(unknownMatchIndex).arg(symbol).arg(unknownMatchIndex).arg(matchGroupList[first_index_of_untranslated_symbol]);
-                            }
-                            ++unknownMatchIndex;
-                        }
-                        return true;
-                    });
-
+                    symbol_index = 0;
                     std::for_each(matchGroupList.cbegin(), matchGroupList.cend(), [&] (const int& groupNumber)
                     {
-                        qDebug() << QString("Symbol=%1(%2) Word=%3(%4)").arg(symbolIndex).arg(groupNumber).arg(word_index).arg(matchGroupList[word_index]);
-                        if(symbolIndex < word_index)
+                        qDebug() << QString("Symbol=%1(%2) Word=%3(%4)").arg(symbol_index).arg(groupNumber).arg(word_index).arg(matchGroupList[word_index]);
+                        if(symbol_index < word_index)
                         {
                             QString matchGroup=matchGroupReference.arg(groupNumber);
                             qDebug() << QString("Adding negative lookahead for matchGroup %1 at word_index %2").arg(matchGroup).arg(word_index);
                             negativeLookAheadAssertion.append(matchGroup).append("|");
                         }
-                        ++symbolIndex;
+                        ++symbol_index;
                         qDebug() << QString("Negativelookahead=%1").arg(negativeLookAheadAssertion);
                     });
 
@@ -432,7 +432,7 @@ QString cipher::generate_regex_match_restrictions(const QVector<QString>& cipher
                         negativeLookAheadAssertion=QString("(?!%1)").arg(atomicGroup.arg(negativeLookAheadAssertion));
                     }
 
-                    symbolRegex.prepend(negativeLookAheadAssertion);
+                    symbolRegex.append(negativeLookAheadAssertion);
                 }
             }
         }
