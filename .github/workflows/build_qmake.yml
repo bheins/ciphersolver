@@ -14,24 +14,21 @@ jobs:
     runs-on: ${{ matrix.config.os }}
     strategy:
       matrix:
-        config:
-        - {
-            name: "Windows Latest x64", artifact: "Windows-x64.zip",
-            os: windows-latest,
-            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
-          }
-        - {
-            name: "Windows Latest x86", artifact: "Windows-x86.zip",
-            os: windows-latest,
-            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars32.bat"
-          }
+        os: [windows-latest]
+        version: ['5.15.1']
 
     steps:
     - uses: actions/checkout@v1
 
+    - name: Install Qt with options
+      uses: ./
+      with:
+        modules: 'widgets'
+        version: ${{ matrix.version }}
     - name: Configure
       shell: qmake {0}
       run: |
+        mingw32-make
 
     - uses: actions/upload-artifact@v1
       id: upload_artifact
