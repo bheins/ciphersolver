@@ -17,10 +17,7 @@ jobs:
         version: ['5.15.1']
 
     steps:
-    - uses: actions/checkout@v1
-
     - name: Install Qt with options
-      uses: ./
       with:
         modules: 'widgets'
         version: ${{ matrix.version }}
