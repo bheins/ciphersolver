@@ -17,14 +17,12 @@ jobs:
         version: ['5.15.1']
 
     steps:
-    - name: Install Qt with options
+    - name: Compile
       with:
         modules: 'widgets'
         version: ${{ matrix.version }}
-    - name: Configure
-      shell: qmake {0}
       run: |
-        mingw32-make
+        qmake {0}
 
     - uses: actions/upload-artifact@v2
       id: upload_artifact
