@@ -3,6 +3,7 @@
 #include "cipherobjectmenu.h"
 #include "databasemanager.h"
 #include <QMainWindow>
+#include <QMap>
 #include <QHash>
 #include <QListWidgetItem>
 #include <QRecursiveMutex>
@@ -13,6 +14,10 @@ namespace Ui { class CipherUI; }
 QT_END_NAMESPACE
 
 class cipherobj;
+
+typedef QVector<QChar> cipher_word;
+typedef QVector<cipher_word> cipher_sentence;
+
 class cipher : public QMainWindow
 {
     Q_OBJECT
@@ -68,4 +73,5 @@ private:
     bool SearchFilterLimited;
     DatabaseManager DbMgr;
     bool CipherLoading;
+    QMap<int, QVariant> ChangeList;
 };
